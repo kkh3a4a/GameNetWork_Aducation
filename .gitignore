@@ -1,0 +1,53 @@
+/.vs
+/Client/x64
+/Client/.vs
+/Server/.vs
+/Server/x64
+
+*.ilk
+*.pdb
+*.log
+*.idb
+*.tlog
+*.lastbuildstate
+*.suo
+*.db
+
+
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+*.ipch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+
+# Executables
+*.exe
+*.out
+*.app
+Server/.vs/Server/v17/.suo
+Server/.vs/Server/v17/Browse.VC.db
+Server/.vs/Server/project-colors.json
+Client/Debug/2d2d.exe.recipe
+Server/Debug/Server.vcxproj.FileListAbsolute.txt
+*.recipe
