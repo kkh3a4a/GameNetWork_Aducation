@@ -7,7 +7,6 @@ and may not be redistributed without written permission.*/
 #include "Extra_Libs\SDL2_image-2.6.2\include\SDL_image.h"
 #include "Extra_Libs\SDL2_mixer-2.6.2\include\SDL_mixer.h"
 #include "Extra_Libs\SDL2_ttf-2.0.15\include\SDL_ttf.h"
-#pragma comment(lib, "ws2_32") // ws2_32.lib 링크
 #include <stdio.h>
 #include <string>
 #include <cmath>
@@ -17,23 +16,6 @@ using namespace std;
 //Screen dimension constants
 const int SCREEN_WIDTH = 640;
 const int SCREEN_HEIGHT = 640;
-
-//server
-const char* SERVER_ADDR = "127.0.0.1";
-const short SERVER_PORT = 9000;
-const int BUFSIZE = 256;
-void error_display(int err_no)
-{
-	WCHAR* lpMsgBuf;
-	FormatMessage(
-		FORMAT_MESSAGE_ALLOCATE_BUFFER | FORMAT_MESSAGE_FROM_SYSTEM,
-		NULL, err_no,
-		MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-		(LPTSTR)&lpMsgBuf, 0, NULL);
-	wcout << L"에러 " << lpMsgBuf << endl;
-	while (1);
-	LocalFree(lpMsgBuf);
-}
 
 //Starts up SDL and creates window
 bool init();
