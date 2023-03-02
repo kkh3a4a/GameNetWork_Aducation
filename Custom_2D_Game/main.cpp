@@ -7,11 +7,7 @@ and may not be redistributed without written permission.*/
 #include "Extra_Libs\SDL2_image-2.6.2\include\SDL_image.h"
 #include "Extra_Libs\SDL2_mixer-2.6.2\include\SDL_mixer.h"
 #include "Extra_Libs\SDL2_ttf-2.0.15\include\SDL_ttf.h"
-#include <stdio.h>
-#include <string>
-#include <cmath>
 #include<iostream>
-#include<WS2tcpip.h>
 using namespace std;
 //Screen dimension constants
 const int SCREEN_WIDTH = 640;
@@ -145,7 +141,7 @@ SDL_Texture* loadTexture(std::string path)
 
 	return newTexture;
 }
-class Events {
+class Games {
 private:
 	bool w_Pressed = false;
 	bool a_Pressed = false;
@@ -199,6 +195,8 @@ public:
 				isKeyPress = true;
 			}
 		}
+
+		//이동
 		if (isKeyPress) {
 			if (w_Pressed) {
 				if (0 < destR.y - 80)
@@ -248,76 +246,69 @@ public:
 		}
 		//cout << destR.x << ", " << destR.y << endl;;
 	}
+	//체스판 생성 , player 이미지 불러오고 생성
+	void Gameinit()
+	{
+		//Main loop flag
 
+
+			//Event handler
+		SDL_Surface* tmpSurface;
+
+		tmpSurface = IMG_Load("player.bmp");
+		if (!tmpSurface) {
+			cout << "Image not loaded" << endl;
+		}
+		playerTex = SDL_CreateTextureFromSurface(gRenderer, tmpSurface);
+		SDL_FreeSurface(tmpSurface);
+		int player_size = 40;
+
+		destR.w = player_size;
+		destR.h = player_size;
+		destR.x = player_size / 2;
+		destR.y = SCREEN_HEIGHT - (player_size * 1.5);
+
+		center.x = player_size / 2;
+		center.y = player_size / 2;
+		SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
+		SDL_RenderClear(gRenderer);
+
+		//Draw blue horizontal line
+
+		SDL_SetRenderDrawColor(gRenderer, 0x00, 0x00, 0x00, 0xFF);
+		for (int i = 0; i <= 8; ++i)
+			SDL_RenderDrawLine(gRenderer, SCREEN_WIDTH * i / 8, 0, SCREEN_WIDTH * i / 8, SCREEN_HEIGHT);
+		for (int i = 0; i <= 8; ++i)
+			SDL_RenderDrawLine(gRenderer, 0, SCREEN_HEIGHT * i / 8, SCREEN_WIDTH, SCREEN_HEIGHT * i / 8);
+		SDL_RenderCopyEx(gRenderer, playerTex, NULL, &destR, 0, &center, SDL_FLIP_NONE);
+		SDL_RenderPresent(gRenderer);
+	}
 };
-Events events;
+Games ingame;
 
 
 int SDL_main(int argc, char* args[])
 {
-	
+
 	//Start up SDL and create window
 	if (!init())
 	{
 		printf("Failed to initialize!\n");
+		return 0;
 	}
-	else
+	//Load media
+	if (!loadMedia())
 	{
-		//Load media
-		if (!loadMedia())
-		{
-			printf("Failed to load media!\n");
-		}
-		else
-		{
-			//Main loop flag
-
-
-			//Event handler
-			SDL_Surface* tmpSurface;
-
-			tmpSurface = IMG_Load("player.bmp");
-			if (!tmpSurface) {
-				cout << "Image not loaded" << endl;
-				return 0;
-			}
-			playerTex = SDL_CreateTextureFromSurface(gRenderer, tmpSurface);
-			SDL_FreeSurface(tmpSurface);
-			int player_size = 40;
-
-			destR.w = player_size;
-			destR.h = player_size;
-			destR.x = player_size / 2;
-			destR.y = SCREEN_HEIGHT - (player_size * 1.5);
-
-			center.x = player_size / 2;
-			center.y = player_size / 2;
-			//Clear screen
-
-			//While application is running
-			SDL_SetRenderDrawColor(gRenderer, 0xFF, 0xFF, 0xFF, 0xFF);
-			SDL_RenderClear(gRenderer);
-
-			//Draw blue horizontal line
-
-			SDL_SetRenderDrawColor(gRenderer, 0x00, 0x00, 0x00, 0xFF);
-			for (int i = 0; i <= 8; ++i)
-				SDL_RenderDrawLine(gRenderer, SCREEN_WIDTH * i / 8, 0, SCREEN_WIDTH * i / 8, SCREEN_HEIGHT);
-			for (int i = 0; i <= 8; ++i)
-				SDL_RenderDrawLine(gRenderer, 0, SCREEN_HEIGHT * i / 8, SCREEN_WIDTH, SCREEN_HEIGHT * i / 8);
-			SDL_RenderCopyEx(gRenderer, playerTex, NULL, &destR, 0, &center, SDL_FLIP_NONE);
-			SDL_RenderPresent(gRenderer);
-			while (!quit)
-			{
-				//Handle events on queue
-
-
-				events.KeyEvent();
-
-			}
-		}
+		printf("Failed to load media!\n");
+		return 0;
 	}
-	//Free resources and close SDL
+	ingame.Gameinit();
+	while (!quit)
+	{
+
+		ingame.KeyEvent();
+
+	}
 	close();
 
 	return 0;

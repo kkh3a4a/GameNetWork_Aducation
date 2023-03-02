@@ -1,8 +1,6 @@
 /.vs
-/Client/x64
-/Client/.vs
-/Server/.vs
-/Server/x64
+/Custom_2D_Game/x64
+/Custom_2D_Game/.vs
 
 *.ilk
 *.pdb
