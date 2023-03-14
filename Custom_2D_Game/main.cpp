@@ -163,34 +163,34 @@ public:
 		if (isKeyPress)
 		{
 			if (event.type == SDL_KEYDOWN) {
-				if (event.key.keysym.sym == SDLK_UP) {
+				if (event.key.keysym.sym == SDLK_UP || event.key.keysym.sym == SDLK_w) {
 					w_Pressed = true;
 				}
-				if (event.key.keysym.sym == SDLK_LEFT) {
+				if (event.key.keysym.sym == SDLK_LEFT || event.key.keysym.sym == SDLK_a) {
 					a_Pressed = true;
 				}
-				if (event.key.keysym.sym == SDLK_DOWN) {
+				if (event.key.keysym.sym == SDLK_DOWN || event.key.keysym.sym == SDLK_s) {
 					s_Pressed = true;
 				}
-				if (event.key.keysym.sym == SDLK_RIGHT) {
+				if (event.key.keysym.sym == SDLK_RIGHT || event.key.keysym.sym == SDLK_d) {
 					d_Pressed = true;
 				}
 			}
 		}
 		if (event.type == SDL_KEYUP) {
-			if (event.key.keysym.sym == SDLK_UP) {
+			if (event.key.keysym.sym == SDLK_UP || event.key.keysym.sym == SDLK_w) {
 				w_Pressed = false;
 				isKeyPress = true;
 			}
-			if (event.key.keysym.sym == SDLK_LEFT) {
+			if (event.key.keysym.sym == SDLK_LEFT || event.key.keysym.sym == SDLK_a) {
 				a_Pressed = false;
 				isKeyPress = true;
 			}
-			if (event.key.keysym.sym == SDLK_DOWN) {
+			if (event.key.keysym.sym == SDLK_DOWN || event.key.keysym.sym == SDLK_s) {
 				s_Pressed = false;
 				isKeyPress = true;
 			}
-			if (event.key.keysym.sym == SDLK_RIGHT) {
+			if (event.key.keysym.sym == SDLK_RIGHT || event.key.keysym.sym == SDLK_d) {
 				d_Pressed = false;
 				isKeyPress = true;
 			}
