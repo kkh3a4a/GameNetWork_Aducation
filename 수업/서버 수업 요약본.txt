@@ -108,7 +108,9 @@ NetWork		- 10M -> ... -> 10G까지 발전
 패킷 		- 인터넷 표준에서의 패킷
 			- 데이터의 단위
 
+WSASocket은 windowsocket api임, C언어라 class불가
 
+WSABUF buf[3]
 
 
 

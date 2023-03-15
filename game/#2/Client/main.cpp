@@ -244,7 +244,7 @@ int SDL_main(int argc, char* args[])
 
 	wcout.imbue(locale("korean"));
 	//cout << SERVER_ADDR << endl;
-	//ingame.Ip_Input();
+	ingame.Ip_Input();
 	cout << SERVER_ADDR << endl;
 	//Start up SDL and create window
 	
