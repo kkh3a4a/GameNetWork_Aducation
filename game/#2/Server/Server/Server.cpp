@@ -100,7 +100,7 @@ void UpdatePlayer(map<SOCKET, Player_Info>& players_list, KeyInput* keyinput, SO
 		}
 
 	}
-	if (keyinput->d)
+	 if (keyinput->d)
 	{
 		if (players_list[c_socket].MyPlayerLocation->x < 7)
 		{
