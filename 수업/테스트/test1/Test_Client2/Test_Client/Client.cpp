@@ -5,14 +5,18 @@ using namespace std;
 constexpr short SERVER_PORT = 9000;
 constexpr int BUF_SIZE = 200;
 WSAOVERLAPPED s_over;
+WSAOVERLAPPED r_over;
 SOCKET s_socket;
 WSABUF s_wsabuf[1];
+WSABUF r_wsabuf[1];
 char s_buf[BUF_SIZE];
+char r_buf[BUF_SIZE];
 
 void CALLBACK send_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED over, DWORD flags);
-void do_send_message();
+void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED over, DWORD flags);
+void do_send();
 void error_display(const char* msg, int err_no);
-
+void do_recv();
 
 int main()
 {
@@ -37,38 +41,75 @@ int main()
 		int errorcode = WSAGetLastError();
 		error_display("WSAConnect : ", errorcode);
 	}
-	do_send_message();
+
+	int tcp_option = 1;
+	setsockopt(s_socket, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<char*>(&tcp_option), sizeof(tcp_option));
+
+	do_recv();
+	do_send();
 	while (true) SleepEx(100, true);
 	closesocket(s_socket);
 	WSACleanup();
 }
 
 
-void do_send_message()
+void do_send()
 {
 	cout << "Enter Messsage: ";
-	cin.getline(s_buf, BUF_SIZE - 1);
+	cin.getline(s_buf, BUF_SIZE);
 	s_wsabuf[0].buf = s_buf;
 	s_wsabuf[0].len = static_cast<int>(strlen(s_buf)) + 1;
 	memset(&s_over, 0, sizeof(s_over));
+
 	int ret = WSASend(s_socket, s_wsabuf, 1, 0, 0, &s_over, send_callback);
+	if (ret != 0)
+	{
+		int errorcode = WSAGetLastError();
+		if (errorcode != WSA_IO_PENDING)
+			error_display("WSAStartup : ", errorcode);
+	}
 	
 }
-
-void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED over, DWORD flags)
+void do_recv()
 {
-	cout << "Server Sent: " << s_buf << endl;
-	do_send_message();
-}
-
-void CALLBACK send_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED over, DWORD flags)
-{
-	s_wsabuf[0].len = BUF_SIZE;
 	DWORD r_flag = 0;
-	memset(over, 0, sizeof(*over));
-	int ret = WSARecv(s_socket, s_wsabuf, 1, 0, &r_flag, over, recv_callback);
-	
+	r_wsabuf[0].buf = r_buf;
+	r_wsabuf[0].len = BUF_SIZE;
+		
+	memset(&r_over, 0, sizeof(r_over));
+
+	int ret = WSARecv(s_socket, r_wsabuf, 1, 0, &r_flag, &r_over, recv_callback);
+	if (ret != 0)
+	{
+		int errorcode = WSAGetLastError();
+		if (errorcode != WSA_IO_PENDING)
+			error_display("WSAStartup : ", errorcode);
+	}
 }
+
+void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED r_over, DWORD flags)
+{
+	memset(r_over, 0, sizeof(*r_over));
+	char* p = r_buf;
+	while (p < r_buf + num_bytes) {
+
+		char packet_size = *p;
+		int c_id = *(p + 1);
+
+		cout << "Client [ " << c_id << " ] Sent [ " << packet_size - 2 << " byte ]" <<   p + 2 << endl;
+		p = p + packet_size;
+	}
+
+	do_recv();
+}
+
+void CALLBACK send_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED s_over, DWORD flags)
+{
+	memset(s_over, 0, sizeof(*s_over));
+	do_send();
+}
+
+
 
 void error_display(const char* msg, int err_no)
 {
