@@ -19,7 +19,6 @@ public:
 	char _send_msg[BUFSIZE];
 
 public:
-
 	EXP_OVER(char s_id, char num_bytes, char* mess) : _s_id(s_id)
 	{
 		ZeroMemory(&_wsa_over, sizeof(WSAOVERLAPPED));
