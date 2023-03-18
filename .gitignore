@@ -1,6 +1,5 @@
-/.vs
-/Custom_2D_Game/x64
-/Custom_2D_Game/.vs
+*/.vs/
+*/x64/
 
 *.ilk
 *.pdb
