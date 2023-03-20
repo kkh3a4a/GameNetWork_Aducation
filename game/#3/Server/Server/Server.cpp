@@ -11,7 +11,7 @@ void error_display(const char* msg, int err_no);
 
 void CALLBACK send_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED send_over, DWORD recv_flag);
 void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED recv_over, DWORD recv_flag);
-
+void CALLBACK temp_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED recv_over, DWORD recv_flag);
 class EXP_OVER {
 public:
 	WSAOVERLAPPED _wsa_over;
@@ -21,6 +21,7 @@ public:
 	EXP_OVER(char s_id, char num_bytes,char player_state, SEND_BUF* send_buf)
 	{
 		ZeroMemory(&_wsa_over, sizeof(WSAOVERLAPPED));
+		_wsa_over.hEvent = reinterpret_cast<HANDLE>(s_id);
 		_wsabuf.buf = reinterpret_cast<CHAR*>(send_buf);
 		_wsabuf.len = sizeof(SEND_BUF);
 		send_buf->id = s_id;
@@ -92,6 +93,21 @@ public:
 		}
 		
 	}
+	void first_send(unordered_map<int, SESSION>& players_list)
+	{
+		player_state = 0;
+		for (auto& pl : players_list)
+		{
+			EXP_OVER* ex_over = new EXP_OVER(_id, 0, player_state, _send_buf);
+			int ret = WSASend(_socket, &ex_over->_wsabuf, 1, 0, 0, &ex_over->_wsa_over, temp_callback);
+			if (ret != 0)
+			{
+				int errorcode = WSAGetLastError();
+				error_display("WSASend : ", errorcode);
+			}
+		}
+	}
+
 
 	void UpdatePlayer()
 	{
@@ -99,12 +115,45 @@ public:
 	}
 };
 
-
-
-
-
-
 unordered_map<int, SESSION> players_list;
+void CALLBACK temp_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED send_over, DWORD recv_flag)
+{
+	int s_id = reinterpret_cast<int>(send_over->hEvent);
+	EXP_OVER* ex_over = reinterpret_cast<EXP_OVER*>(send_over);
+	delete send_over;
+
+	players_list[s_id].do_recv();
+}
+
+void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED recv_over, DWORD recv_flag)
+{
+	int s_id = reinterpret_cast<int>(recv_over->hEvent);
+
+	if (players_list[s_id]._recv_buf->key_input.w && players_list[s_id]._send_buf->player_location.y > 0)
+	{
+		players_list[s_id]._send_buf->player_location.y -= 1;
+	}
+	if (players_list[s_id]._recv_buf->key_input.a && players_list[s_id]._send_buf->player_location.x > 0)
+		players_list[s_id]._send_buf->player_location.x -= 1;
+	if (players_list[s_id]._recv_buf->key_input.s && players_list[s_id]._send_buf->player_location.y < 7)
+		players_list[s_id]._send_buf->player_location.y += 1;
+	if (players_list[s_id]._recv_buf->key_input.d && players_list[s_id]._send_buf->player_location.x < 7)
+		players_list[s_id]._send_buf->player_location.x += 1;
+
+	for (auto& pl : players_list)
+	{
+		pl.second.do_send(s_id, num_bytes, players_list[s_id]._send_buf);
+	}
+	players_list[s_id].do_recv();
+
+
+}
+
+void CALLBACK send_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED send_over, DWORD recv_flag)
+{
+	EXP_OVER* ex_over = reinterpret_cast<EXP_OVER*>(send_over);
+	delete send_over;
+}
 
 
 int main()
@@ -144,46 +193,17 @@ int main()
 	WSABUF mybuf_s[1];
 	//mybuf_s[0].buf = reinterpret_cast<CHAR*>(players_list[c_socket]);
 	mybuf_s[0].len = sizeof(Player_Location);
+	
 	for (int i = 1; ; ++i) {
 		SOCKET c_socket = WSAAccept(s_socket, reinterpret_cast<sockaddr*>(&server_addr), &addr_size, 0, 0);
 		players_list.try_emplace(i, i, c_socket);
 		int tcp_option = 1;
 		setsockopt(c_socket, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<char*>(&tcp_option), sizeof(tcp_option));
-		players_list[i].do_recv();
+		players_list[i].first_send(players_list);
+		//players_list[i].do_recv();
 	}
 	WSACleanup();
 }
-
-void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED recv_over, DWORD recv_flag) 
-{
-	int s_id = reinterpret_cast<int>(recv_over->hEvent);
-	
-	if (players_list[s_id]._recv_buf->key_input.w && players_list[s_id]._send_buf->player_location.y > 0)
-	{
-		players_list[s_id]._send_buf->player_location.y -= 1;
-	}
-	if (players_list[s_id]._recv_buf->key_input.a && players_list[s_id]._send_buf->player_location.x > 0)
-			players_list[s_id]._send_buf->player_location.x -= 1;
-	if (players_list[s_id]._recv_buf->key_input.s && players_list[s_id]._send_buf->player_location.y < 7)
-		players_list[s_id]._send_buf->player_location.y += 1;
-	if (players_list[s_id]._recv_buf->key_input.d && players_list[s_id]._send_buf->player_location.x < 7)
-		players_list[s_id]._send_buf->player_location.x += 1;
-
-	for (auto& pl : players_list)
-	{
-		pl.second.do_send(s_id, num_bytes, players_list[s_id]._send_buf);
-	}
-	players_list[s_id].do_recv();
-
-
-}
-
-void CALLBACK send_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED send_over, DWORD recv_flag)
-{
-	EXP_OVER* ex_over = reinterpret_cast<EXP_OVER*>(send_over);
-	delete send_over;
-}
-
 
 
 

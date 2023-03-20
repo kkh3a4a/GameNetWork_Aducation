@@ -45,7 +45,7 @@ SDL_Window* gWindow = NULL;
 SDL_Renderer* gRenderer = NULL;
 SDL_Event event;
 
-SDL_Rect MyPlayer;
+unordered_map<int, SDL_Rect> MyPlayer;
 unordered_map<int, Player_Info> players_list;
 SDL_Point center;
 
@@ -193,7 +193,10 @@ public:
 			SDL_RenderDrawLine(gRenderer, SCREEN_WIDTH * i / 8, 0, SCREEN_WIDTH * i / 8, SCREEN_HEIGHT);
 		for (int i = 0; i <= 8; ++i)
 			SDL_RenderDrawLine(gRenderer, 0, SCREEN_HEIGHT * i / 8, SCREEN_WIDTH, SCREEN_HEIGHT * i / 8);
-		SDL_RenderCopyEx(gRenderer, playerTex, NULL, &MyPlayer, 0, &center, SDL_FLIP_NONE);
+		for (auto& a : MyPlayer)
+		{
+			SDL_RenderCopyEx(gRenderer, playerTex, NULL, &a.second, 0, &center, SDL_FLIP_NONE);
+		}
 
 
 		//Update screen
@@ -238,11 +241,12 @@ public:
 		playerTex = SDL_CreateTextureFromSurface(gRenderer, tmpSurface);
 		SDL_FreeSurface(tmpSurface);
 		int player_size = 40;
-
-		MyPlayer.w = player_size;
-		MyPlayer.h = player_size;
-		MyPlayer.x = player_size / 2;
-		MyPlayer.y = player_size / 2;
+		SDL_Rect* temped = new SDL_Rect;
+		MyPlayer.insert({ 0,*temped });
+		MyPlayer[0].w = player_size;
+		MyPlayer[0].h = player_size;
+		MyPlayer[0].x = player_size / 2;
+		MyPlayer[0].y = player_size / 2;
 
 		center.x = player_size / 2;
 		center.y = player_size / 2;
@@ -256,7 +260,8 @@ public:
 			SDL_RenderDrawLine(gRenderer, SCREEN_WIDTH * i / 8, 0, SCREEN_WIDTH * i / 8, SCREEN_HEIGHT);
 		for (int i = 0; i <= 8; ++i)
 			SDL_RenderDrawLine(gRenderer, 0, SCREEN_HEIGHT * i / 8, SCREEN_WIDTH, SCREEN_HEIGHT * i / 8);
-		SDL_RenderCopyEx(gRenderer, playerTex, NULL, &MyPlayer, 0, &center, SDL_FLIP_NONE);
+	
+		SDL_RenderCopyEx(gRenderer, playerTex, NULL, &MyPlayer[0], 0, &center, SDL_FLIP_NONE);
 		SDL_RenderPresent(gRenderer);
 	}
 	void do_send() 
@@ -292,14 +297,14 @@ void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED r_over, 
 {
 	if (_recv_buf->player_state == 0)
 	{
-
+		cout << (int)_recv_buf->id << endl;
 	}
 	if(_recv_buf->player_state == 1)
 	{
 		players_list[_recv_buf->id].MyPlayerLocation->x = _recv_buf->player_location.x;
 		players_list[_recv_buf->id].MyPlayerLocation->y = _recv_buf->player_location.y;
-		MyPlayer.x = players_list[_recv_buf->id].MyPlayerLocation->x * 80 + 20;
-		MyPlayer.y = players_list[_recv_buf->id].MyPlayerLocation->y * 80 + 20;
+		MyPlayer[0].x = players_list[_recv_buf->id].MyPlayerLocation->x * 80 + 20;
+		MyPlayer[0].y = players_list[_recv_buf->id].MyPlayerLocation->y * 80 + 20;
 		memset(r_over, 0, sizeof(*r_over));
 		cout << players_list[_recv_buf->id].MyPlayerLocation->x << ", " << players_list[_recv_buf->id].MyPlayerLocation->y << endl;
 	}
