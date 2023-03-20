@@ -1,28 +1,124 @@
 #include <iostream>
 #include <WS2tcpip.h>
 #include"global.h"
-#include<map>
+#include<unordered_map>
 using namespace std;
 #pragma comment (lib, "WS2_32.LIB")
 const short SERVER_PORT = 9000;
 const int BUFSIZE = 256;
 
-map<SOCKET, Player_Info> players_list;
 void error_display(const char* msg, int err_no);
-void UpdatePlayer(map<SOCKET, Player_Info>&, KeyInput*, SOCKET);
+
+void CALLBACK send_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED send_over, DWORD recv_flag);
+void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED recv_over, DWORD recv_flag);
+
+class EXP_OVER {
+public:
+	WSAOVERLAPPED _wsa_over;
+	WSABUF _wsabuf;
+
+public:
+	EXP_OVER(char s_id, char num_bytes,char player_state, SEND_BUF* send_buf)
+	{
+		ZeroMemory(&_wsa_over, sizeof(WSAOVERLAPPED));
+		_wsabuf.buf = reinterpret_cast<CHAR*>(send_buf);
+		_wsabuf.len = sizeof(SEND_BUF);
+		send_buf->id = s_id;
+		send_buf->num_byte = num_bytes;
+		send_buf->player_state = player_state;
+		// 256넘는 byte 보낼수 없음( 사이즈 검사 필요 )
+		// 최대 접속 100명 안됨, 1byte라서 
+	}
+
+	~EXP_OVER()
+	{
+
+	}
+};
+
+class SESSION {
+private:
+	int _id;
+	WSABUF _recv_wsabuf{};
+	WSABUF _send_wsabuf{};
+	WSAOVERLAPPED _recv_over;
+	SOCKET _socket;
+	int player_state;
+
+public:
+	RECV_BUF* _recv_buf{};
+	SEND_BUF* _send_buf{};
+
+	SESSION() {
+		cout << "Unexpected Constructor Call Error!\n";
+		exit(-1);
+	}
+	SESSION(int id, SOCKET s) : _id(id), _socket(s) {
+		player_state = 0;
+		_recv_buf = new RECV_BUF;
+		_send_buf = new SEND_BUF;
+		_recv_buf->key_input = { 0 };
+		_send_buf->player_location = { 0 };
+		_recv_wsabuf.buf = reinterpret_cast<CHAR*>(_recv_buf); _recv_wsabuf.len = sizeof(RECV_BUF);
+		_send_wsabuf.buf = reinterpret_cast<CHAR*>(_send_buf); _send_wsabuf.len = sizeof(SEND_BUF);
+		
+	}
+	~SESSION() {
+		cout << "사라짐" << endl;
+		closesocket(_socket);
+	}
+	void do_recv() {
+		DWORD recv_flag = 0;
+		ZeroMemory(&_recv_over, sizeof(_recv_over));
+		_recv_over.hEvent = reinterpret_cast<HANDLE>(_id);
+		int ret = WSARecv(_socket, &_recv_wsabuf, 1, 0, &recv_flag, &_recv_over, recv_callback);
+		if (ret != 0)
+		{
+			int errorcode = WSAGetLastError();
+			if (errorcode != WSA_IO_PENDING)
+				error_display("WSARecv : ", errorcode);
+		}
+	}
+	void do_send(int sender_id, int num_bytes, SEND_BUF* send_buf)
+	{
+		player_state = 1;
+		EXP_OVER* ex_over = new EXP_OVER(sender_id, num_bytes, player_state, send_buf);
+		int ret = WSASend(_socket, &ex_over->_wsabuf, 1, 0, 0, &ex_over->_wsa_over, send_callback);
+		if (ret != 0)
+		{
+			int errorcode = WSAGetLastError();
+			if (errorcode != WSA_IO_PENDING)
+				error_display("WSASend : ", errorcode);
+		}
+		
+	}
+
+	void UpdatePlayer()
+	{
+
+	}
+};
+
+
+
+
+
+
+unordered_map<int, SESSION> players_list;
+
 
 int main()
 {
 	KeyInput* keyinput = new KeyInput;
 
 	WSADATA WSAData;
-	int ret = WSAStartup(MAKEWORD(2, 0), &WSAData);
+	int ret = WSAStartup(MAKEWORD(2, 2), &WSAData);
 	if (ret != 0)
 	{
 		int errorcode = WSAGetLastError();
 		error_display("WSAStartup : ", errorcode);
 	}
-	SOCKET s_socket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, 0, 0, 0);
+	SOCKET s_socket = WSASocket(AF_INET, SOCK_STREAM, IPPROTO_TCP, 0, 0, WSA_FLAG_OVERLAPPED);
 	SOCKADDR_IN server_addr;
 	ZeroMemory(&server_addr, sizeof(server_addr));
 	server_addr.sin_family = AF_INET;
@@ -32,85 +128,61 @@ int main()
 	if (ret != 0)
 	{
 		int errorcode = WSAGetLastError();
-		error_display("WSAStartup : ", errorcode);
+		error_display("WSA_bind : ", errorcode);
 	}
 	ret = listen(s_socket, SOMAXCONN);
 	if (ret != 0)
 	{
 		int errorcode = WSAGetLastError();
-		error_display("WSAStartup : ", errorcode);
+		error_display("WSA_listen : ", errorcode);
 	}
 	INT addr_size = sizeof(server_addr);
-	SOCKET c_socket = WSAAccept(s_socket, reinterpret_cast<sockaddr*>(&server_addr), &addr_size, 0, 0);
-	Player_Info player_info;
-	players_list.insert({ c_socket, player_info });
+
+
+	
 	Player_Location player;
 	WSABUF mybuf_s[1];
-	mybuf_s[0].buf = reinterpret_cast<CHAR*>(players_list[c_socket].MyPlayerLocation);
+	//mybuf_s[0].buf = reinterpret_cast<CHAR*>(players_list[c_socket]);
 	mybuf_s[0].len = sizeof(Player_Location);
-	for (;;) {
-		char recv_buf[BUFSIZE];
-		WSABUF mybuf;
-		mybuf.buf = recv_buf; 
-		mybuf.len = BUFSIZE;
-		DWORD recv_byte;
-		DWORD recv_flag = 0;
-		WSARecv(c_socket, &mybuf, 1, &recv_byte, &recv_flag, 0, 0);
-		
-		keyinput = reinterpret_cast<KeyInput*>(mybuf.buf);
-		UpdatePlayer(players_list, keyinput, c_socket);
-
-		DWORD sent_byte;
-		if (keyinput->w || keyinput->a|| keyinput->s|| keyinput->d)
-			cout << players_list[c_socket].MyPlayerLocation->x << "," << players_list[c_socket].MyPlayerLocation->y << endl;
-		WSASend(c_socket, mybuf_s, 1, &sent_byte, 0, 0, 0);
-
-
+	for (int i = 1; ; ++i) {
+		SOCKET c_socket = WSAAccept(s_socket, reinterpret_cast<sockaddr*>(&server_addr), &addr_size, 0, 0);
+		players_list.try_emplace(i, i, c_socket);
+		int tcp_option = 1;
+		setsockopt(c_socket, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<char*>(&tcp_option), sizeof(tcp_option));
+		players_list[i].do_recv();
 	}
 	WSACleanup();
 }
 
-
-
-
-
-void UpdatePlayer(map<SOCKET, Player_Info>& players_list, KeyInput* keyinput, SOCKET c_socket)
+void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED recv_over, DWORD recv_flag) 
 {
-	if (keyinput->w)
+	int s_id = reinterpret_cast<int>(recv_over->hEvent);
+	
+	if (players_list[s_id]._recv_buf->key_input.w && players_list[s_id]._send_buf->player_location.y > 0)
 	{
-		if (players_list[c_socket].MyPlayerLocation->y > 0)
-		{
-			players_list[c_socket].MyPlayerLocation->y -= 1;
-		}
-		
+		players_list[s_id]._send_buf->player_location.y -= 1;
 	}
-	if (keyinput->a)
-	{
-		if (players_list[c_socket].MyPlayerLocation->x > 0)
-		{
-			players_list[c_socket].MyPlayerLocation->x -= 1;
-		}
+	if (players_list[s_id]._recv_buf->key_input.a && players_list[s_id]._send_buf->player_location.x > 0)
+			players_list[s_id]._send_buf->player_location.x -= 1;
+	if (players_list[s_id]._recv_buf->key_input.s && players_list[s_id]._send_buf->player_location.y < 7)
+		players_list[s_id]._send_buf->player_location.y += 1;
+	if (players_list[s_id]._recv_buf->key_input.d && players_list[s_id]._send_buf->player_location.x < 7)
+		players_list[s_id]._send_buf->player_location.x += 1;
 
-	}
-	if (keyinput->s)
+	for (auto& pl : players_list)
 	{
-		if (players_list[c_socket].MyPlayerLocation->y < 7)
-		{
-			players_list[c_socket].MyPlayerLocation->y += 1;
-		}
+		pl.second.do_send(s_id, num_bytes, players_list[s_id]._send_buf);
+	}
+	players_list[s_id].do_recv();
 
-	}
-	 if (keyinput->d)
-	{
-		if (players_list[c_socket].MyPlayerLocation->x < 7)
-		{
-			players_list[c_socket].MyPlayerLocation->x += 1;
-		}
-	}
+
 }
 
-
-
+void CALLBACK send_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED send_over, DWORD recv_flag)
+{
+	EXP_OVER* ex_over = reinterpret_cast<EXP_OVER*>(send_over);
+	delete send_over;
+}
 
 
 

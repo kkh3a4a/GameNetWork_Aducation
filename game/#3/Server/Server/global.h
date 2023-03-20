@@ -6,6 +6,8 @@ public:
 	bool d = false;
 };
 
+
+
 struct Player_Location
 {
 public:
@@ -14,8 +16,17 @@ public:
 };
 
 
-struct Player_Info {
-	Player_Location* MyPlayerLocation = new Player_Location;
+struct RECV_BUF {
+public:
+	KeyInput key_input;
+};
+
+struct SEND_BUF {
+public:
+	char id{};
+	char num_byte{};
+	char player_state{};	//0 : 霉 立加, 1 : 立加 惑怕, -1 : 立加秦力
+	Player_Location player_location{};
 };
 
 
