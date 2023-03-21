@@ -10,7 +10,7 @@ WSABUF s_wsabuf[1];
 char s_buf[BUF_SIZE];
 
 void CALLBACK send_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED over, DWORD flags);
-void do_send_message();
+void do_send();
 void error_display(const char* msg, int err_no);
 
 
@@ -37,14 +37,14 @@ int main()
 		int errorcode = WSAGetLastError();
 		error_display("WSAConnect : ", errorcode);
 	}
-	do_send_message();
+	do_send();
 	while (true) SleepEx(100, true);
 	closesocket(s_socket);
 	WSACleanup();
 }
 
 
-void do_send_message()
+void do_send()
 {
 	cout << "Enter Messsage: ";
 	cin.getline(s_buf, BUF_SIZE - 1);
@@ -58,13 +58,13 @@ void do_send_message()
 		if (errorcode != WSA_IO_PENDING)
 			error_display("WSAStartup : ", errorcode);
 	}
-	
+
 }
 
 void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED over, DWORD flags)
 {
 	cout << "Server Sent: " << s_buf << endl;
-	do_send_message();
+	do_send();
 }
 
 void CALLBACK send_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED over, DWORD flags)
