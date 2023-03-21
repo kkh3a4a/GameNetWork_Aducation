@@ -242,11 +242,11 @@ public:
 		SDL_FreeSurface(tmpSurface);
 		int player_size = 40;
 		SDL_Rect* temped = new SDL_Rect;
-		MyPlayer.insert({ 0,*temped });
-		MyPlayer[0].w = player_size;
-		MyPlayer[0].h = player_size;
-		MyPlayer[0].x = player_size / 2;
-		MyPlayer[0].y = player_size / 2;
+		MyPlayer.insert({ 1,*temped });
+		MyPlayer[1].w = player_size;
+		MyPlayer[1].h = player_size;
+		MyPlayer[1].x = player_size / 2;
+		MyPlayer[1].y = player_size / 2;
 
 		center.x = player_size / 2;
 		center.y = player_size / 2;
@@ -261,7 +261,7 @@ public:
 		for (int i = 0; i <= 8; ++i)
 			SDL_RenderDrawLine(gRenderer, 0, SCREEN_HEIGHT * i / 8, SCREEN_WIDTH, SCREEN_HEIGHT * i / 8);
 	
-		SDL_RenderCopyEx(gRenderer, playerTex, NULL, &MyPlayer[0], 0, &center, SDL_FLIP_NONE);
+		SDL_RenderCopyEx(gRenderer, playerTex, NULL, &MyPlayer[1], 0, &center, SDL_FLIP_NONE);
 		SDL_RenderPresent(gRenderer);
 	}
 	void do_send() 
@@ -297,18 +297,32 @@ void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED r_over, 
 {
 	if (_recv_buf->player_state == 0)
 	{
-		cout << (int)_recv_buf->id << endl;
+		cout << "create Avatar" << endl;
+		Player_Info player_info;
+		SDL_Rect sdl_rect{};
+		players_list[_recv_buf->id] = player_info;
+		MyPlayer[_recv_buf->id] = sdl_rect;
+		MyPlayer[_recv_buf->id].w = 40;
+		MyPlayer[_recv_buf->id].h = 40;
+		MyPlayer[_recv_buf->id].x = 40 / 2;
+		MyPlayer[_recv_buf->id].y = 40 / 2;
+		players_list[_recv_buf->id].MyPlayerLocation->x = _recv_buf->player_location.x;
+		players_list[_recv_buf->id].MyPlayerLocation->y = _recv_buf->player_location.y;
+		MyPlayer[_recv_buf->id].x = players_list[_recv_buf->id].MyPlayerLocation->x * 80 + 20;
+		MyPlayer[_recv_buf->id].y = players_list[_recv_buf->id].MyPlayerLocation->y * 80 + 20;
+		memset(r_over, 0, sizeof(*r_over));
+
 	}
 	if(_recv_buf->player_state == 1)
 	{
 		players_list[_recv_buf->id].MyPlayerLocation->x = _recv_buf->player_location.x;
 		players_list[_recv_buf->id].MyPlayerLocation->y = _recv_buf->player_location.y;
-		MyPlayer[0].x = players_list[_recv_buf->id].MyPlayerLocation->x * 80 + 20;
-		MyPlayer[0].y = players_list[_recv_buf->id].MyPlayerLocation->y * 80 + 20;
+		MyPlayer[_recv_buf->id].x = players_list[_recv_buf->id].MyPlayerLocation->x * 80 + 20;
+		MyPlayer[_recv_buf->id].y = players_list[_recv_buf->id].MyPlayerLocation->y * 80 + 20;
 		memset(r_over, 0, sizeof(*r_over));
-		cout << players_list[_recv_buf->id].MyPlayerLocation->x << ", " << players_list[_recv_buf->id].MyPlayerLocation->y << endl;
 	}
 
+	//cout << (int)_recv_buf->id << " : " << players_list[_recv_buf->id].MyPlayerLocation->x << ", " << players_list[_recv_buf->id].MyPlayerLocation->y << endl;
 	ingame.do_recv();
 }
 
@@ -362,8 +376,8 @@ int SDL_main(int argc, char* args[])
 	}
 	cout << "connecting" << endl;
 	Player_Info player_info;
-	int player_count = 0;
-	players_list.insert({ player_count, player_info});
+
+	players_list.insert({ 0, player_info});
 	
 
 	if (!init())

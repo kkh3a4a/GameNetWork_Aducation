@@ -293,15 +293,24 @@ int SDL_main(int argc, char* args[])
 	{
 		DWORD sent_byte;
 		ingame.KeyEvent();
-		WSASend(s_socket, mybuf, 1, &sent_byte, 0, 0, 0);
-
+		ret = WSASend(s_socket, mybuf, 1, &sent_byte, 0, 0, 0);
+		if (ret != 0)
+		{
+			int errorcode = WSAGetLastError();
+			error_display("Connect : ", errorcode);
+		}
 		char recv_buf[BUFSIZE];
 		WSABUF mybuf_r[1];
 		mybuf_r[0].buf = recv_buf;
 		mybuf_r[0].len = BUFSIZE;
 		DWORD recv_byte;
 		DWORD recv_flag = 0;
-		WSARecv(s_socket, mybuf_r, 1, &recv_byte, &recv_flag, 0, 0);
+		ret = WSARecv(s_socket, mybuf_r, 1, &recv_byte, &recv_flag, 0, 0);
+		if (ret != 0)
+		{
+			int errorcode = WSAGetLastError();
+			error_display("Connect : ", errorcode);
+		}
 		players_list[0].MyPlayerLocation = reinterpret_cast<Player_Location*>(recv_buf);
 
 		MyPlayer.x = players_list[0].MyPlayerLocation->x * 80 + 20;

@@ -98,8 +98,15 @@ public:
 		player_state = 0;
 		for (auto& pl : players_list)
 		{
-			EXP_OVER* ex_over = new EXP_OVER(_id, 0, player_state, _send_buf);
+			EXP_OVER* ex_over = new EXP_OVER(pl.first, 0, player_state, pl.second._send_buf);
 			int ret = WSASend(_socket, &ex_over->_wsabuf, 1, 0, 0, &ex_over->_wsa_over, temp_callback);
+			if (ret != 0)
+			{
+				int errorcode = WSAGetLastError();
+				error_display("WSASend : ", errorcode);
+			}
+			EXP_OVER* ex_over2 = new EXP_OVER(_id, 0, player_state, _send_buf);
+			ret = WSASend(pl.second._socket, &ex_over2->_wsabuf, 1, 0, 0, &ex_over2->_wsa_over, temp_callback);
 			if (ret != 0)
 			{
 				int errorcode = WSAGetLastError();
