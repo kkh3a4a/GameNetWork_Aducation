@@ -112,13 +112,64 @@ WSASocket은 windowsocket api임, C언어라 class불가
 
 WSABUF buf[3]
 
+----------------------------------------------
+----------- I/O모델 ---------------------------
 
+Non-blocking I/O
+	- 단점 많은 recv 실패
+	- cpu 낭비
 
+Socket Thread
+	- 1:1 게임서버가 여러개 있는 것과 비슷
+	- 구현 쉬움
+	- 잘 돌아감
+	- 과도한 thread 개수로 인한 운영체제 Overhead
+		- thread 오버헤드 : 컨텍스트 스위치, Stack 메모리
 
+Coroutine을 사옹한 처리
+	- 프로그래밍 방법은 thread-IO와 동일
+	- Coroutine API에서 오버헤드 전부 해결
+	문제	- C++20에 coroutine이 들어갔는데 아직 초기단계
+		- C++23에 제대로 구현예정
 
+Select
+	- Unix시절 부터 내려온 고전적인 I/O 모델
+	단점	- socket 개수의 한계 존재 // unix : 64, linux : 1024
+		- socket의 개수가 많아질수록 성능 저하
+	- 이전엔 사용했지만, 이젠 사용 안함
 
+WSAAsyncSelect
+	- 소켓 이벤트를 특정 윈도우의 메시지로 받는다.
+	- Client는 Non-blocking I/O로 충분하나, 이걸로 구현 가능
+	- Client에서만 쓸 수 있다.
 
+WSAEventSelect
+	- Window 가 없음
+	- socket과 event의 array를 만들어서 
+	- 윈도우 메시지 큐를 사용 -> 성능 느림 WSAWaitForMultipleEvents() 의 리턴값으로 부터 socket 추출
+	- 소켓의 개수 64개 제한
+	WSAEVENT 
+		- 운영체제가 관리하는 플랙
+		- 세마포어나 컨디션 변수와 비슷
+		- Event가 발생했음을 알리는 용도
 
+Overlapped I/O 모델
+	- Windows에서 추가된 고성능 I/O 모델
+	- 대용량 고성능 네트워크 서버에 필수
+	- IOCP도 Overlapped I/O 사용
+	- I/O요청 -> I/O 종료 확인
+	- I/O요청 후 기다리지 않고 다른 일을 할 수 있다.
+	- 여러개의 I/O 요청을 동시에 할 수 있다.
+
+Overlapped I/O의
+Event vs Callback
+
+Overlapped I/O callback 모델	
+	- 프로그램이 운영체제를 호출하고 대기중일 때, 운영체제에서 실행을 요청한다.
+		- 운영체제를 호출하는 프로그램에서 호출에 대한 응답인지, callback실행 요청인지 판단해야 한다.
+		- 모든 운영체제 호출이 Callback 검사하지 않는다.
+	- Callback을 사용한 프로그램의 구조
+		- 할 일 있으면 하고 없으면, SleepEx 호출
 
 
 
