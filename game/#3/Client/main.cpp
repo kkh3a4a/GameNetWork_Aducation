@@ -321,6 +321,11 @@ void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED r_over, 
 		MyPlayer[_recv_buf->id].y = players_list[_recv_buf->id].MyPlayerLocation->y * 80 + 20;
 		memset(r_over, 0, sizeof(*r_over));
 	}
+	if (_recv_buf->player_state == -1)
+	{
+		cout << "Player [ " << (int)_recv_buf->id << " ] disconnect" << endl;
+		players_list.erase(_recv_buf->id);
+	}
 
 	//cout << (int)_recv_buf->id << " : " << players_list[_recv_buf->id].MyPlayerLocation->x << ", " << players_list[_recv_buf->id].MyPlayerLocation->y << endl;
 	ingame.do_recv();

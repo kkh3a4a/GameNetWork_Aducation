@@ -11,7 +11,8 @@ void error_display(const char* msg, int err_no);
 
 void CALLBACK send_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED send_over, DWORD recv_flag);
 void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED recv_over, DWORD recv_flag);
-void CALLBACK temp_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED recv_over, DWORD recv_flag);
+void CALLBACK connect_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED send_over, DWORD send_flag);
+void disconnect(int id);
 class EXP_OVER {
 public:
 	WSAOVERLAPPED _wsa_over;
@@ -44,9 +45,10 @@ private:
 	WSABUF _send_wsabuf{};
 	WSAOVERLAPPED _recv_over;
 	SOCKET _socket;
-	int player_state;
+	
 
 public:
+	int player_state;
 	RECV_BUF* _recv_buf{};
 	SEND_BUF* _send_buf{};
 
@@ -76,19 +78,37 @@ public:
 		if (ret != 0)
 		{
 			int errorcode = WSAGetLastError();
-			if (errorcode != WSA_IO_PENDING)
+
+			if (errorcode == 10054)
+			{
+				player_state = -1;
+				return;
+			}
+			else if (errorcode != WSA_IO_PENDING)
 				error_display("WSARecv : ", errorcode);
 		}
 	}
-	void do_send(int sender_id, int num_bytes, SEND_BUF* send_buf)
+	void do_send(int sender_id, int num_bytes, SEND_BUF* send_buf, int player_state, unordered_map<int, SESSION>& players_list)
 	{
-		player_state = 1;
 		EXP_OVER* ex_over = new EXP_OVER(sender_id, num_bytes, player_state, send_buf);
 		int ret = WSASend(_socket, &ex_over->_wsabuf, 1, 0, 0, &ex_over->_wsa_over, send_callback);
 		if (ret != 0)
 		{
 			int errorcode = WSAGetLastError();
-			if (errorcode != WSA_IO_PENDING)
+			if (errorcode == 10054)
+			{
+				player_state = -1;
+				
+				for (auto& pl : players_list)
+				{
+					if (pl.first != _id)
+					{
+						pl.second.do_send(_id, num_bytes, send_buf, player_state, players_list);
+						
+					}
+				}
+			}
+			else if (errorcode != WSA_IO_PENDING)
 				error_display("WSASend : ", errorcode);
 		}
 		
@@ -99,14 +119,14 @@ public:
 		for (auto& pl : players_list)
 		{
 			EXP_OVER* ex_over = new EXP_OVER(pl.first, 0, player_state, pl.second._send_buf);
-			int ret = WSASend(_socket, &ex_over->_wsabuf, 1, 0, 0, &ex_over->_wsa_over, temp_callback);
+			int ret = WSASend(_socket, &ex_over->_wsabuf, 1, 0, 0, &ex_over->_wsa_over, connect_callback);
 			if (ret != 0)
 			{
 				int errorcode = WSAGetLastError();
 				error_display("WSASend : ", errorcode);
 			}
 			EXP_OVER* ex_over2 = new EXP_OVER(_id, 0, player_state, _send_buf);
-			ret = WSASend(pl.second._socket, &ex_over2->_wsabuf, 1, 0, 0, &ex_over2->_wsa_over, temp_callback);
+			ret = WSASend(pl.second._socket, &ex_over2->_wsabuf, 1, 0, 0, &ex_over2->_wsa_over, connect_callback);
 			if (ret != 0)
 			{
 				int errorcode = WSAGetLastError();
@@ -123,7 +143,7 @@ public:
 };
 
 unordered_map<int, SESSION> players_list;
-void CALLBACK temp_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED send_over, DWORD recv_flag)
+void CALLBACK connect_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED send_over, DWORD send_flag)
 {
 	int s_id = reinterpret_cast<int>(send_over->hEvent);
 	EXP_OVER* ex_over = reinterpret_cast<EXP_OVER*>(send_over);
@@ -135,6 +155,16 @@ void CALLBACK temp_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED send_ove
 void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED recv_over, DWORD recv_flag)
 {
 	int s_id = reinterpret_cast<int>(recv_over->hEvent);
+	if (err != 0)
+	{
+		return;
+	}
+	if (players_list[s_id].player_state == -1)
+	{
+		players_list.erase(s_id);
+		return;
+	}
+	
 
 	if (players_list[s_id]._recv_buf->key_input.w && players_list[s_id]._send_buf->player_location.y > 0)
 	{
@@ -149,8 +179,9 @@ void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED recv_ove
 
 	for (auto& pl : players_list)
 	{
-		pl.second.do_send(s_id, num_bytes, players_list[s_id]._send_buf);
+		pl.second.do_send(s_id, num_bytes, players_list[s_id]._send_buf, 1, players_list);
 	}
+	
 	players_list[s_id].do_recv();
 
 
@@ -162,6 +193,12 @@ void CALLBACK send_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED send_ove
 	delete send_over;
 }
 
+
+void disconnect(int s_id)
+{
+	players_list.erase(s_id);
+	return;
+}
 
 int main()
 {
