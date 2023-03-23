@@ -37,6 +37,7 @@ bool IsValidIPAddress(const string& str);
 //Loads individual image as texture
 SDL_Texture* loadTexture(string path);
 SDL_Texture* playerTex;
+SDL_Texture* OtherplayerTex;
 
 //The window we'll be rendering to
 SDL_Window* gWindow = NULL;
@@ -61,7 +62,7 @@ bool init();
 bool loadMedia();
 void close();
 
-
+int my_id = 0;
 
 SEND_BUF* _send_buf = new SEND_BUF;
 RECV_BUF* _recv_buf = new RECV_BUF;
@@ -195,7 +196,10 @@ public:
 			SDL_RenderDrawLine(gRenderer, 0, SCREEN_HEIGHT * i / 8, SCREEN_WIDTH, SCREEN_HEIGHT * i / 8);
 		for (auto& a : MyPlayer)
 		{
-			SDL_RenderCopyEx(gRenderer, playerTex, NULL, &a.second, 0, &center, SDL_FLIP_NONE);
+			if(a.first == my_id)
+				SDL_RenderCopyEx(gRenderer, playerTex, NULL, &a.second, 0, &center, SDL_FLIP_NONE);
+			else
+				SDL_RenderCopyEx(gRenderer, OtherplayerTex, NULL, &a.second, 0, &center, SDL_FLIP_NONE);
 		}
 
 
@@ -233,20 +237,21 @@ public:
 
 			//Event handler
 		SDL_Surface* tmpSurface;
-
-		tmpSurface = IMG_Load("player.bmp");
+		SDL_Surface* tmpSurface2;
+		tmpSurface = IMG_Load("Player.bmp");
+		tmpSurface2 = IMG_Load("OtherPlayer.bmp");
 		if (!tmpSurface) {
 			cout << "Image not loaded" << endl;
 		}
+		if (!tmpSurface2) {
+			cout << "Image not loaded" << endl;
+		}
 		playerTex = SDL_CreateTextureFromSurface(gRenderer, tmpSurface);
+		OtherplayerTex = SDL_CreateTextureFromSurface(gRenderer, tmpSurface2);
 		SDL_FreeSurface(tmpSurface);
+		SDL_FreeSurface(tmpSurface2);
 		int player_size = 40;
-		SDL_Rect* temped = new SDL_Rect;
-		MyPlayer.insert({ 1,*temped });
-		MyPlayer[1].w = player_size;
-		MyPlayer[1].h = player_size;
-		MyPlayer[1].x = player_size / 2;
-		MyPlayer[1].y = player_size / 2;
+		
 
 		center.x = player_size / 2;
 		center.y = player_size / 2;
@@ -260,9 +265,15 @@ public:
 			SDL_RenderDrawLine(gRenderer, SCREEN_WIDTH * i / 8, 0, SCREEN_WIDTH * i / 8, SCREEN_HEIGHT);
 		for (int i = 0; i <= 8; ++i)
 			SDL_RenderDrawLine(gRenderer, 0, SCREEN_HEIGHT * i / 8, SCREEN_WIDTH, SCREEN_HEIGHT * i / 8);
-	
-		SDL_RenderCopyEx(gRenderer, playerTex, NULL, &MyPlayer[1], 0, &center, SDL_FLIP_NONE);
+
 		SDL_RenderPresent(gRenderer);
+		int ret = recv(s_socket, (char*)&my_id, sizeof(int), 0);
+		if (ret != 4)
+		{
+			int errorcode = WSAGetLastError();
+			error_display("WSASend : ", errorcode);
+			exit(-1);
+		}
 	}
 	void do_send() 
 	{
@@ -324,7 +335,9 @@ void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED r_over, 
 	if (_recv_buf->player_state == -1)
 	{
 		cout << "Player [ " << (int)_recv_buf->id << " ] disconnect" << endl;
+
 		players_list.erase(_recv_buf->id);
+		MyPlayer.erase(_recv_buf->id);
 	}
 
 	//cout << (int)_recv_buf->id << " : " << players_list[_recv_buf->id].MyPlayerLocation->x << ", " << players_list[_recv_buf->id].MyPlayerLocation->y << endl;

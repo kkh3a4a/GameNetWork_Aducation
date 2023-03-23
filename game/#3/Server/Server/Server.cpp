@@ -64,10 +64,17 @@ public:
 		_send_buf->player_location = { 0 };
 		_recv_wsabuf.buf = reinterpret_cast<CHAR*>(_recv_buf); _recv_wsabuf.len = sizeof(RECV_BUF);
 		_send_wsabuf.buf = reinterpret_cast<CHAR*>(_send_buf); _send_wsabuf.len = sizeof(SEND_BUF);
+		int ret = send(_socket, (char*)&id, sizeof(int), 0);
+		if (ret != 4)
+		{
+			int errorcode = WSAGetLastError();
+			cout << errorcode << endl;
+			error_display("WSA_listen : ", errorcode);
+		}
 		
 	}
 	~SESSION() {
-		cout << "»ç¶óÁü" << endl;
+		cout << "Player " << _id  << " disconnect" << endl;
 		closesocket(_socket);
 	}
 	void do_recv() {
@@ -126,11 +133,14 @@ public:
 				error_display("WSASend : ", errorcode);
 			}
 			EXP_OVER* ex_over2 = new EXP_OVER(_id, 0, player_state, _send_buf);
-			ret = WSASend(pl.second._socket, &ex_over2->_wsabuf, 1, 0, 0, &ex_over2->_wsa_over, connect_callback);
-			if (ret != 0)
+			if(pl.first != _id)
 			{
-				int errorcode = WSAGetLastError();
-				error_display("WSASend : ", errorcode);
+				ret = WSASend(pl.second._socket, &ex_over2->_wsabuf, 1, 0, 0, &ex_over2->_wsa_over, connect_callback);
+				if (ret != 0)
+				{
+					int errorcode = WSAGetLastError();
+					error_display("WSASend : ", errorcode);
+				}
 			}
 		}
 	}
@@ -157,6 +167,10 @@ void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED recv_ove
 	int s_id = reinterpret_cast<int>(recv_over->hEvent);
 	if (err != 0)
 	{
+		if (err == 10022)
+			return;
+		players_list[s_id].do_send(s_id, num_bytes, players_list[s_id]._send_buf, 1, players_list);
+		players_list.erase(s_id);
 		return;
 	}
 	if (players_list[s_id].player_state == -1)
@@ -233,14 +247,11 @@ int main()
 
 
 	
-	Player_Location player;
-	WSABUF mybuf_s[1];
-	//mybuf_s[0].buf = reinterpret_cast<CHAR*>(players_list[c_socket]);
-	mybuf_s[0].len = sizeof(Player_Location);
 	
 	for (int i = 1; ; ++i) {
 		SOCKET c_socket = WSAAccept(s_socket, reinterpret_cast<sockaddr*>(&server_addr), &addr_size, 0, 0);
 		players_list.try_emplace(i, i, c_socket);
+		
 		int tcp_option = 1;
 		setsockopt(c_socket, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<char*>(&tcp_option), sizeof(tcp_option));
 		players_list[i].first_send(players_list);
