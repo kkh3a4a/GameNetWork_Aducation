@@ -169,8 +169,11 @@ void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED recv_ove
 	{
 		if (err == 10022)
 			return;
-		players_list[s_id].do_send(s_id, num_bytes, players_list[s_id]._send_buf, 1, players_list);
-		players_list.erase(s_id);
+		if (players_list.find(s_id) != players_list.end())
+		{
+			players_list[s_id].do_send(s_id, num_bytes, players_list[s_id]._send_buf, 1, players_list);
+			players_list.erase(s_id);
+		}
 		return;
 	}
 	if (players_list[s_id].player_state == -1)

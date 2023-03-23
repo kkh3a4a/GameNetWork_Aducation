@@ -196,12 +196,10 @@ public:
 			SDL_RenderDrawLine(gRenderer, 0, SCREEN_HEIGHT * i / 8, SCREEN_WIDTH, SCREEN_HEIGHT * i / 8);
 		for (auto& a : MyPlayer)
 		{
-			if(a.first == my_id)
-				SDL_RenderCopyEx(gRenderer, playerTex, NULL, &a.second, 0, &center, SDL_FLIP_NONE);
-			else
+			if(a.first != my_id)
 				SDL_RenderCopyEx(gRenderer, OtherplayerTex, NULL, &a.second, 0, &center, SDL_FLIP_NONE);
 		}
-
+		SDL_RenderCopyEx(gRenderer, playerTex, NULL, &MyPlayer[my_id], 0, &center, SDL_FLIP_NONE);
 
 		//Update screen
 		SDL_RenderPresent(gRenderer);
