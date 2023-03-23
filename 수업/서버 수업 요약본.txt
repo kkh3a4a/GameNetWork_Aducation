@@ -171,8 +171,27 @@ Overlapped I/O callback 모델
 	- Callback을 사용한 프로그램의 구조
 		- 할 일 있으면 하고 없으면, SleepEx 호출
 
+-------------IOCP----------------
 
+서버에서 IOCP의 객체 생성은 하나로 충분
 
+WSASend, WSARecv 뿐만아니라 Accept도 비동기(IOCP)로 작동해야함
+
+클라에서 A,B,C,D 페킷을 보냈는데 A,B는 완료했고 C는 반 짤려서 왔을때 C의 크기를 알고 패킷 재조립해야함
+
+패킷 재조립 코드는 졸작, 텀프에 쓰지마라
+	- 표절 의혹에 휘말릴 수 있음
+	- 직접 만들어라 ㅇㅇ
+	- 샘플 코드 조심
+
+AcceptEx에서는 lpob 를받는데 이게 3개 데이터를 한번에 처리한다.
+	실습할때 안쓰지만 length에 0 0 0 넣으면 안됨
+	-Clientaddr
+		- 클라 주소
+	-Serveraddr
+		- 서버 주소
+	-Recv데이터
+		- 뒤늦게 Accept가 되었다면 Recv데이터까지 받음
 
 
 
