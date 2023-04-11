@@ -203,6 +203,16 @@ STACK만 쓰레드마다 가지고 있음
 
 
 
+성능 -> 멀티 쓰레드 but (Data Race) -> lock을 걸면 더 느려짐
+Live with DataRace
+	-> compiler (volatile)
+	-> CPU	    (atomic_thread_force)
+	-> Cache    (pointer 주의)
+	-> ABA	    (주소 재사용 문제)
+
+
+
+
 
 
 
