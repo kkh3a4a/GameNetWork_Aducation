@@ -136,7 +136,7 @@ void ProcessPacket(char* ptr)
 	{
 		SC_ADD_PLAYER_PACKET * my_packet = reinterpret_cast<SC_ADD_PLAYER_PACKET*>(ptr);
 		int id = my_packet->id;
-
+		cout << id << " : " << players[id].m_x << ", " << players[id].m_y << endl;
 		if (id == g_myid) {
 			avatar.move(my_packet->x, my_packet->y);
 			g_left_x = my_packet->x - 4;
@@ -147,6 +147,7 @@ void ProcessPacket(char* ptr)
 			players[id] = OBJECT{ *pieces, 0, 0, 64, 64 };
 			players[id].move(my_packet->x, my_packet->y);
 			players[id].set_name(my_packet->name);
+			
 			players[id].show();
 		}
 		else {
@@ -159,7 +160,11 @@ void ProcessPacket(char* ptr)
 	case SC_MOVE_PLAYER:
 	{
 		SC_MOVE_PLAYER_PACKET* my_packet = reinterpret_cast<SC_MOVE_PLAYER_PACKET*>(ptr);
+
 		int other_id = my_packet->id;
+
+		
+
 		if (other_id == g_myid) {
 			avatar.move(my_packet->x, my_packet->y);
 			g_left_x = my_packet->x - 4;

@@ -6,14 +6,14 @@
 #include <vector>
 #include <mutex>
 #include <unordered_set>
-#include<concurrent_unordered_set.h>
+#include <concurrent_unordered_set.h>
 #include "protocol.h"
-
+#include<shared_mutex>
 #pragma comment(lib, "WS2_32.lib")
 #pragma comment(lib, "MSWSock.lib")
 using namespace std;
 
-constexpr int VIEW_RANGE = 4;
+constexpr int VIEW_RANGE = 6;
 
 enum COMP_TYPE { OP_ACCEPT, OP_RECV, OP_SEND };
 class OVER_EXP {
@@ -53,8 +53,8 @@ public:
 	int		_prev_remain;
 	int		_last_move_time;
 
-	unordered_set<int> _view_list;	//concurrent_unordered_set으로도 구현해 보면 좋음
-	mutex _vl;
+	unordered_set <int> _view_list;
+	shared_mutex _vl;
 public:
 	SESSION()
 	{
@@ -97,18 +97,23 @@ public:
 	void send_add_player_packet(int c_id);
 	void send_remove_player_packet(int c_id)
 	{
-		_vl.lock();
-		if (_view_list.count(c_id) == 0) { 
-			_vl.unlock();
-			return; 
+		if(_view_list.count(c_id) != 0)
+		{
+			{
+				std::shared_lock<std::shared_mutex> lock(_vl);
+				if (_view_list.count(c_id) == 0) {
+					lock.unlock();
+					return;
+				}
+				_view_list.erase(c_id);
+			}
+			SC_REMOVE_PLAYER_PACKET p;
+			p.id = c_id;
+			p.size = sizeof(p);
+			p.type = SC_REMOVE_PLAYER;
+			do_send(&p);
 		}
-		_view_list.erase(c_id);
-		_vl.unlock();
-		SC_REMOVE_PLAYER_PACKET p;
-		p.id = c_id;
-		p.size = sizeof(p);
-		p.type = SC_REMOVE_PLAYER;
-		do_send(&p);
+
 	}
 };
 
@@ -119,36 +124,37 @@ OVER_EXP g_a_over;
 
 void SESSION::send_move_packet(int c_id)
 {
-	_vl.lock();
-	if (_view_list.count(c_id) != 0)
 	{
-		_vl.unlock();
-		SC_MOVE_PLAYER_PACKET p;
-		p.id = c_id;
-		p.size = sizeof(SC_MOVE_PLAYER_PACKET);
-		p.type = SC_MOVE_PLAYER;
-		p.x = clients[c_id].x;
-		p.y = clients[c_id].y;
-		p.move_time = clients[c_id]._last_move_time;
-		do_send(&p);
-	}
-	else {
-		_vl.unlock();
-		send_add_player_packet(c_id);
+		std::shared_lock<std::shared_mutex> lock(_vl);
+		if (_view_list.count(c_id) != 0) {
+			lock.unlock();
+			SC_MOVE_PLAYER_PACKET p;
+			p.id = c_id;
+			p.size = sizeof(SC_MOVE_PLAYER_PACKET);
+			p.type = SC_MOVE_PLAYER;
+			p.x = clients[c_id].x;
+			p.y = clients[c_id].y;
+			p.move_time = clients[c_id]._last_move_time;
+			do_send(&p);
+		}
+		else {
+			lock.unlock();
+			send_add_player_packet(c_id);
+		}
 	}
 }
 
 void SESSION::send_add_player_packet(int c_id)
 {
-	_vl.lock();
-	if (_view_list.count(c_id) != 0)
 	{
-		_vl.unlock();
-		send_move_packet(c_id);
-		return;
+		std::unique_lock<std::shared_mutex> lock(_vl);
+		if (_view_list.count(c_id) != 0) {
+			lock.unlock();
+			send_move_packet(c_id);
+			return;
+		}
+		_view_list.insert(c_id);
 	}
-	_view_list.insert(c_id);
-	_vl.unlock();
 
 	SC_ADD_PLAYER_PACKET add_packet;
 	add_packet.id = c_id;
@@ -170,24 +176,22 @@ int get_new_client_id()
 	return -1;
 }
 
-
 bool can_see(int p1, int p2)
 {
-	
-
+	// return VIEW_RANGE <= SQRT((p1.x - p2.x) ^ 2 + (p1.y - p2.y) ^ 2);
 	if (abs(clients[p1].x - clients[p2].x) > VIEW_RANGE) return false;
 	if (abs(clients[p1].y - clients[p2].y) > VIEW_RANGE) return false;
-
-	//sqrt(((clients[p1].x - clients[p2].x) ^ 2) + ((clients[p1].y + clients[p2].y) ^ 2));
-
-
+	return true;
 }
+
 void process_packet(int c_id, char* packet)
 {
 	switch (packet[1]) {
 	case CS_LOGIN: {
 		CS_LOGIN_PACKET* p = reinterpret_cast<CS_LOGIN_PACKET*>(packet);
 		strcpy_s(clients[c_id]._name, p->name);
+		clients[c_id].x = rand() % W_WIDTH;
+		clients[c_id].y = rand() % W_HEIGHT;
 		clients[c_id].send_login_info_packet();
 		{
 			lock_guard<mutex> ll{ clients[c_id]._s_lock };
@@ -218,22 +222,21 @@ void process_packet(int c_id, char* packet)
 		}
 		clients[c_id].x = x;
 		clients[c_id].y = y;
-
-		clients[c_id]._vl.lock();
-		auto old_vl = clients[c_id]._view_list;
-		clients[c_id]._vl.unlock();
-
-		unordered_set<int> new_vl;
-		for (auto&cl : clients)
+		unordered_set <int> old_vl;
 		{
+			std::shared_lock<std::shared_mutex> lock(clients[c_id]._vl);
+			old_vl = clients[c_id]._view_list;
+		}
+
+		unordered_set <int> new_vl;
+		for (auto& cl : clients) {
 			if (cl._state != ST_INGAME) continue;
 			if (cl._id == c_id) continue;
 			if (can_see(cl._id, c_id))
 				new_vl.insert(cl._id);
 		}
-
-		for (auto& o : new_vl)
-		{
+	
+		for (auto& o : new_vl) {
 			if (old_vl.count(o) == 0) {
 				clients[o].send_add_player_packet(c_id);
 				clients[c_id].send_add_player_packet(o);
@@ -243,10 +246,15 @@ void process_packet(int c_id, char* packet)
 				clients[c_id].send_move_packet(o);
 			}
 		}
-		for (auto& cl : clients) {
-			if (cl._state != ST_INGAME) continue;
-			cl.send_move_packet(c_id);
+		clients[c_id].send_move_packet(c_id);
 
+		for (auto& ov : old_vl)
+		{
+			if (new_vl.count(ov) == 0)
+			{
+				clients[c_id].send_remove_player_packet(ov);
+				clients[ov].send_remove_player_packet(c_id);
+			}
 		}
 	}
 	}
@@ -300,8 +308,8 @@ void worker_thread(HANDLE h_iocp)
 					lock_guard<mutex> ll(clients[client_id]._s_lock);
 					clients[client_id]._state = ST_ALLOC;
 				}
-				clients[client_id].x = rand() % W_WIDTH;
-				clients[client_id].y = rand() % W_HEIGHT;
+				clients[client_id].x = 0;
+				clients[client_id].y = 0;
 				clients[client_id]._id = client_id;
 				clients[client_id]._name[0] = 0;
 				clients[client_id]._prev_remain = 0;
