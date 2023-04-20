@@ -100,7 +100,7 @@ public:
 		if(_view_list.count(c_id) != 0)
 		{
 			{
-				std::shared_lock<std::shared_mutex> lock(_vl);
+				std::unique_lock<std::shared_mutex> lock(_vl);
 				if (_view_list.count(c_id) == 0) {
 					lock.unlock();
 					return;
@@ -248,12 +248,14 @@ void process_packet(int c_id, char* packet)
 		}
 		clients[c_id].send_move_packet(c_id);
 
-		for (auto& ov : old_vl)
+		for (auto op : old_vl)
 		{
-			if (new_vl.count(ov) == 0)
+			if (clients[op]._state != ST_INGAME) continue;
+			if (clients[op]._id == c_id) continue;
+			if (new_vl.count(op) == 0)
 			{
-				clients[c_id].send_remove_player_packet(ov);
-				clients[ov].send_remove_player_packet(c_id);
+				clients[c_id].send_remove_player_packet(op);
+				clients[op].send_remove_player_packet(c_id);
 			}
 		}
 	}
