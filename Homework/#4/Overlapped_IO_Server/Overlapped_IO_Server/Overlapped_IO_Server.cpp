@@ -42,6 +42,11 @@ public:
 		_wsabuf.buf = _send_buf;
 		ZeroMemory(&_wsa_over, sizeof(_wsa_over));
 		memcpy(_send_buf, packet, packet[0]);
+		SC_MOVE_PLAYER_PACKET* p = reinterpret_cast<SC_MOVE_PLAYER_PACKET*>(packet);
+		p->type;
+		SC_MOVE_PLAYER_PACKET* p2 = reinterpret_cast<SC_MOVE_PLAYER_PACKET*>(_send_buf);
+		p2->type;
+
 		c_id = id;
 	}
 };
@@ -171,9 +176,9 @@ void SESSION::processpacket(unsigned char* buf)
 
 		for (auto& pl : clients) {
 			if (pl.second._state != ST_INGAME) continue;
-			//pl.second.send_move_packet(c_id);
-
+			pl.second.send_move_packet(c_id);
 		}
+		break;
 	}
 	default:
 	{
@@ -196,39 +201,35 @@ void SESSION::send_add_player_packet(int c_id)
 	do_send(&add_packet);
 }
 
-
-//void disconnect(int c_id)
-//{
-//	for (auto& pl : clients) {
-//		{
-//			lock_guard<mutex> ll(pl._s_lock);
-//			if (ST_INGAME != pl._state) continue;
-//		}
-//		if (pl._id == c_id) continue;
-//		pl.send_remove_player_packet(c_id);
-//	}
-//	closesocket(clients[c_id]._socket);
-//
-//	lock_guard<mutex> ll(clients[c_id]._s_lock);
-//	clients[c_id]._state = ST_FREE;
-//}
-
+void SESSION::send_move_packet(int c_id) 
+{
+	SC_MOVE_PLAYER_PACKET move_packet;
+	move_packet.type = SC_MOVE_PLAYER;
+	move_packet.size = sizeof(SC_MOVE_PLAYER_PACKET);
+	move_packet.x = clients[c_id].x;
+	move_packet.y = clients[c_id].y;
+	move_packet.id = c_id;
+	move_packet.move_time = clients[c_id]._last_move_time;
+	do_send(&move_packet);
+}
 
 
 void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED recv_over, DWORD recv_flag)
 {
+	EXP_OVER* ex_over = reinterpret_cast<EXP_OVER*>(recv_over);
+	int c_id = ex_over->c_id;
 	if (err != 0)
 	{
+		disconnect(c_id);
 		return;
 	}
-	EXP_OVER* wsa_over_ex = reinterpret_cast<EXP_OVER*>(recv_over);
-
+	
 	//여기서 패킷 재조립을 해준다.
-	char* packet_start = wsa_over_ex->_send_buf;
+	char* packet_start = ex_over->_send_buf;
 	static size_t in_packet_size = 0;
 	static size_t saved_packet_size = 0;
 	static unsigned char packet_buffer[BUF_SIZE];
-	int c_id = wsa_over_ex->c_id;
+	
 
 	while (0 != num_bytes) {
 		if (0 == in_packet_size) in_packet_size = packet_start[0];
@@ -253,13 +254,33 @@ void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED recv_ove
 void CALLBACK send_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED send_over, DWORD recv_flag)
 {
 	EXP_OVER* ex_over = reinterpret_cast<EXP_OVER*>(send_over);
+	int c_id = ex_over->c_id;
+	if (err != 0)
+	{
+		clients[c_id]._state = ST_FREE;
+		disconnect(c_id);
+		return;
+	}
+
 	delete ex_over;
 }
 
 
 void disconnect(int s_id)
 {
-	clients.erase(s_id);
+	{
+		std::unique_lock<std::shared_mutex> lock(cl_lock);
+		if (clients.count(s_id) != 0)
+		{
+			closesocket(clients[s_id]._socket);
+			clients.erase(s_id);
+		}
+		lock.unlock();
+	}
+	for (auto& pl : clients) {
+		if (pl.second._state != ST_INGAME) continue;
+			pl.second.send_remove_player_packet(s_id);
+	}
 	return;
 }
 

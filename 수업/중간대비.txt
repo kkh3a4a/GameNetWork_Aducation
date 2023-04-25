@@ -1,0 +1,156 @@
+1. 리니지나 World of Warcraft등 샤딩을 사용하고 있다. (O)
+2. 샤딩을 하려할때 샤드간의 통신 오버헤드의 증가를 고려 해야한다(X)
+	-샤드간에는 통신이 전혀없다 (특수한 경우에는 있을수 있지만 없음)
+3. 샤딩을 할 경우 샤딩의 개수만큼 별도 DB가 필요하다 (O)
+4. 기능별 분산과 샤딩은 공존하기 어려운 개념이다 (X)
+	- 같이 한다. 둘중 하나만 할수도있음
+5. 기능별 분산을 하는 경우 어느 한 서버가 병목이 되는 것을 피하기는 힘들다.	(O)
+	- 왜? 반드시 어느 한 서버가 병목이 된다.
+6. 접속 분할의 경우 반드시 게임에서 로그아웃을 해야 채널 이동을 할 수 있다.	(X)
+	- 반드시는 아님 
+7. 공간 분할의 경우 심리스 방식보다 포탈 방식이 구현이 더 어렵다 (X)
+	- 포탈 방식이 더 쉽다. 
+
+2. MO서버(LOL, 배그)를 MMO서버(검은사막, 리니지)로 쉽게 변경 할 수 없는 이유(구현이 어려운 이유)
+	- 한 월드의 동접 개수가 차이가 난다.
+	- 지속성/// MOG서버는 한판하고 리셋되지만 MMOG서버는 리셋되지 않고 계속 유지된다. (서버 안전성, 서버 데이터베이스)
+	
+3. 클라이언트와 서버 사이의 프로토콜을 고급 언어의 구조체로 정의하려 할 때 생기는 문제점
+	- C의 struct로 구현했는데 실제 서버에서는 그렇게 하지않음
+	- 호환성때문에(compiler, CPU 차이, C언어 차이)
+	- 메모리 낭비 (pragma pack을 했지만 완벽하지 않음)
+	- 유연성
+
+4. 일반 데스크탑 CPU를 서버용 컴퓨터에서 사용되는 CPU인 XEON이나 EPYC처럼 한 컴퓨터에 여러 개를 설치해서 사용할 수 없는 이유
+	- 그 이유는 캐시 동기화기능이 없기 때문이다.
+		- inter에서 그렇게 만들지 않았기 때문
+			- CPU가 2개 있을때 Memory access는 각자 CPU 캐시를 통해 이루어지기 때문
+			- 변수 A를 동시에 읽고 쓸때 값이 제대로 되지않음
+	- XEON이나 EPYC CPU는 상대방 CPU에 캐싱이 되어있나 감시함, 상대방이 가지고있다면 상대방 CPU에서 캐시를 가져옴
+	
+
+5. 프로그램 실행 속도 최적화를 할 때 CPU 파이프라인의 Stall을 줄여야 한다. 이를 위해서는 조건부 분기 명령과 메모리 참조를 줄여야하는데
+조건부 분기 명령이 파이프라인 stall을 발생시키는 이유는 무엇인가?
+	-파이프라인이 stall이 되지 않으려면 명령을 끊김없이 계속 패치를 해주어야 하지만,
+	 조건문 분기가 true인지 false인지 알 수 없기 때문에 다음 명령이 무엇인지 알수 없기 때문
+	
+	- 분기 예측을 통해 최적화하지만 없앨수는 없다. 만약 분기 예측이 실패할 경우 파이프라인 stall이 발생
+
+6. 다음은 Select방식의 I/O 서버의 대략적인 구조이다. 
+
+while(true)
+{
+	recv_ready_sockets = select(all_sockets);
+	for(auto i : all_sockets)
+	{
+		if(recv_ready_sockets.find(i))
+		{
+		( _______________ );	-> 이 구조에 들어갈 내용은? i.recv();
+		{
+	{
+}
+
+7. Select방식 I/O서버의 단점
+	- 동접이 제한 되어 있다. LINUX(1024)
+	- Array 서치를 해 주어야함
+
+8. 하나에 프로세스에 존재하는 쓰레드끼리는 서로 Code, Data, Heap을 공유한다. 하지만 Stack을 공유하지 않는데 그 이유는?
+	- Stack을 공유하면 프로그램이 힘들어짐, 프로그램 편의성이 떨어진다.
+	- 구현이 힘들어진다. stack에 공유변수, Stack관리가 되지 않기 때문이다. 즉 메모리 관리가 안된다.
+	- 지역변수를 독립적으로 사용하지않으면 코드가 힘들기 때문
+	- StackFrame때문에 함수 호출이 서로 충돌하기 때문에
+
+9-1. Overlapped I/O는 달리 동기식 I/O라고도 불린다. (X)
+	- 비동기식 I/O임
+9-2. Overlapped I/O에서는 하나에 소켓에 여러 개의 send를 할 때 data_race가 발생하므로 상호 배제가 필요하다. ( X )
+	- 상호배제가 발생하지 않음 (send할때 다 다른 buf사용, send할때 마다 overlapped구조체 만들어서 사용하기 때문)
+9-3. Overlapped I/O에서는 데이터 전송을 위해 send()대신 WSASend()API를 반드시 사용해야 한다. (O)
+9-4. Overlapped I/O에서는 하나의 Overlapped 구조체를 여러 비동기 호출에서 동시에 사용할 수 없다. (O)
+9-5. Overlapped I/O를 통한 Send/Recv API의 호출은 대기없이 즉시 리턴한다. (O)
+	- 즉시 return한다고 실패가 아님, nonblocking은 실패
+9-6. Overlapped I/O는 Send/Recv뿐만 아니라 Accept도 Overlapped로 처리 가능하다. (O)
+
+10-1. 전용 API로는 CreateIoCompletionPort와 RegisterThreadtoIOCP등이 있다.(X)
+	- RegisterThreadtoIOCP이런거 없음, CreateIoCompletionPort, GetQueuedCompletionStatus, PostQueuedCompletionStatus 이 3개 밖에 없다.
+10-2. Overlapped I/O 모드와 NonOverlapped I/O 모드를 선택할 수 있다. (X)
+	- 무조건 Overlapped I/O으로만 구현 가능
+10-3. CreateIoCompletionPort API를 통해서 소켓을 IOCP 객체에 등록한다 (O)
+10-4. 반드시 멀티쓰레드로 동작 시켜야한다. (X)
+10-5. 대역폭을 높이기 위해 하나의 소켓에 대해 복수의 WSARecv를 호출한다 (X)
+	- 오류
+10-6. WSASend는 해당 소켓의 WSARecv를 처리하는 쓰레드에서만 실행되어야만 한다. (X)
+	- WSASend 는 datarace를 일으키지 않음
+
+11. IOCP서버에서 사용되는 확장된 overlapped구조체이다. 각 field의 용도와 확장된 overlapped 구조체 안에 넣어야하는 이유
+
+struct EXOVER {
+	WSAOVERLAPPED 	over;			-> overlapped 구조체는 맨 앞에 있어야함 overlapped I/O를 위한 확장 구조체의 기반
+	ENUMOP		op;			-> op는 완료된 I/O가 send, recv accept인가 알려주기 위한 op이다.	여기밖에 넣을 곳이 없다.
+	char		io_buf[MAX_BUF_SIZE];	-> 송수신에 사용되는 실제 메모리 buf, 메모리 관리의 편의성을 위해
+	union {
+	        WSABUF	wsabuf;			-> overlapped I/O에서 WSASend, WSARecv 할때 wsabuf를 사용하기 때문, 메모리 관리의 편의성을 위해
+	        SOCKET	c_socket;			-> 비동기 accept일때만 사용함, 어떤 소켓으로 accept 요청할때 그 소켓값을 받기 위해서
+	};
+}
+
+12-1. Thread사이의 동기화는 지역변수의 공유를 통해 이루어진다.(X)
+	- 지역변수가 아닌 전역변수의 공유를 통해 이루어짐
+12-2 분산 서버 사이의 통신에서도 메모리 일관성 문제가 발생할 수 있다.(X)
+	- 메모리 일관성 문제는 공유 메모리에서 발생하는 것임 분산서버끼리는 공유 메모리가 없음
+12-3. 모든 싱글 쓰레드 알고리즘은 mutex만으로 multi-thread에서 atomic하게 동작하게 할 수 있다. (O)
+	- 되지만 성능이 떨어짐
+12-4 atomic_thread_fence명령을 추가하면 모든 변수 참조를 atomic하게 만들 수 있다.(O)
+	- 오버헤드가 큰 작업임
+12-5 피터슨 알고리즘은 Blocking알고리즘 중에 하나이다. (O)
+	- lock이 없다고해서 non-blocking 알고리즘인것은 아니다.
+12-6 lock을 사용하지 않는 atomic 알고리즘을 lock free 알고리즘이라고 부른다 (X)
+	- 피터슨 알고리즘도 lock free 알고리즘이 아님
+	- 여러쓰레드에서 동시에 호출할때 적어도 1개는 정상 작동할때
+12-7 non-blocking 알고리즘인 lock-free 알고리즘의 수행 시간은 다른 쓰레드의 동작에 영향을 받지 않는다. (X)
+	- 다른 쓰레드 동작 영향을 받지 않고 수행시간에 맞춰 끝나는 것은 wait-free 알고리즘임 
+
+13. 다음 두 함수를 각각 별도의 쓰레드로 실행했는데, error의 값이 0이 아니다. 그 원인과 그에 따른 해결책은?
+
+volatile bool done = false;
+volatile int *bound;
+int error;
+
+//bound를 0, -1로 바꿔주는 thread
+void ThreadFunc1()
+{
+	for (int j =0; j<250000;++j)
+	{
+		*bound = -(1 + *bound);
+	}
+	done =true;
+}
+
+//bound의 값이 0, -1 가 아닌경우 error를 증가시키는 thread
+void ThreadFunc2()
+{
+	while(!done)
+	{
+		int v = *bound;
+		if((v != 0) && (v != -1))
+		{	
+			error++
+		}
+	}
+}
+
+원인은 cacheline boundary에 걸쳐 있기 때문이다. 
+bound가 4바이트인데 bound가 한 cache line에 있지 않고, cache line 경계선에 걸쳐 있기 때문이다.
+bound 값 update가 atomic하게 이루어 지지 않음
+
+해결책은 주소를 cache line 경계선에 걸치지 않게 해야한다.
+	읽거나 쓸때 mutex를 걸어준다
+
+
+
+
+
+
+
+
+
+

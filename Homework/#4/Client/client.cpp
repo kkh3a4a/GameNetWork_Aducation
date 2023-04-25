@@ -118,6 +118,7 @@ void client_finish()
 void ProcessPacket(char* ptr)
 {
 	static bool first_time = true;
+	int case1 = ptr[1];
 	switch (ptr[1])
 	{
 	case SC_LOGIN_INFO:
