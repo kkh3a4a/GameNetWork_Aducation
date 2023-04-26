@@ -145,8 +145,10 @@ void SESSION::processpacket(unsigned char* buf)
 
 		{
 			std::shared_lock<std::shared_mutex> lock(cl_lock);
+			int count = 0;
 			for (auto& pl : clients)
 			{
+				count++;
 				{
 					std::shared_lock<std::shared_mutex> clock(pl.second._s_lock);
 					if (ST_INGAME != pl.second._state) 
@@ -157,6 +159,7 @@ void SESSION::processpacket(unsigned char* buf)
 				clients[c_id].send_add_player_packet(pl.second.c_id);
 
 			}
+			cout << count << endl;
 		}
 		break;
 	}
@@ -220,7 +223,11 @@ void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED recv_ove
 	int c_id = ex_over->c_id;
 	if (err != 0)
 	{
-		disconnect(c_id);
+		if(clients.count(c_id) != 0)
+		{
+			clients[c_id]._state = ST_FREE;
+			disconnect(c_id);
+		}
 		return;
 	}
 	
@@ -257,8 +264,11 @@ void CALLBACK send_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED send_ove
 	int c_id = ex_over->c_id;
 	if (err != 0)
 	{
-		clients[c_id]._state = ST_FREE;
-		disconnect(c_id);
+		if (clients.count(c_id) != 0)
+		{
+			clients[c_id]._state = ST_FREE;
+			disconnect(c_id);
+		}
 		return;
 	}
 

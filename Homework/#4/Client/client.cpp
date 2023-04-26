@@ -127,8 +127,8 @@ void ProcessPacket(char* ptr)
 		g_myid = packet->id;
 		avatar.m_x = packet->x;
 		avatar.m_y = packet->y;
-		g_left_x = packet->x - 4;
-		g_top_y = packet->y - 4;
+		g_left_x = packet->x - 7;
+		g_top_y = packet->y - 7;
 		avatar.show();
 	}
 	break;
@@ -140,8 +140,8 @@ void ProcessPacket(char* ptr)
 
 		if (id == g_myid) {
 			avatar.move(my_packet->x, my_packet->y);
-			g_left_x = my_packet->x - 4;
-			g_top_y = my_packet->y - 4;
+			g_left_x = my_packet->x - 7;
+			g_top_y = my_packet->y - 7;
 			avatar.show();
 		}
 		else if (id < MAX_USER) {
@@ -163,8 +163,8 @@ void ProcessPacket(char* ptr)
 		int other_id = my_packet->id;
 		if (other_id == g_myid) {
 			avatar.move(my_packet->x, my_packet->y);
-			g_left_x = my_packet->x - 4;
-			g_top_y = my_packet->y - 4;
+			g_left_x = my_packet->x - 7;
+			g_top_y = my_packet->y - 7;
 		}
 		else if (other_id < MAX_USER) {
 			players[other_id].move(my_packet->x, my_packet->y);
