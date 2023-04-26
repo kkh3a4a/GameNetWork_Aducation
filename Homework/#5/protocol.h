@@ -6,7 +6,7 @@ constexpr int MAX_USER = 10000;
 
 constexpr int W_WIDTH = 400;
 constexpr int W_HEIGHT = 400;
-
+constexpr int ZONE_SEC = 40;
 // Packet ID
 constexpr char CS_LOGIN = 0;
 constexpr char CS_MOVE = 1;
