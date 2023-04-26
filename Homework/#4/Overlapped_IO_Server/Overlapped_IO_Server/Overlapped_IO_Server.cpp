@@ -1,11 +1,14 @@
 #include <iostream>
+#include <array>
 #include <WS2tcpip.h>
 #include<unordered_map>
+#include <unordered_set>
 #include"../../protocol.h"
-#include<shared_mutex>
+
 using namespace std;
 #pragma comment (lib, "WS2_32.LIB")
-
+constexpr int VIEW_RANGE = 5;
+bool can_see(int p1, int p2);
 
 void error_display(const char* msg, int err_no);
 
@@ -36,7 +39,7 @@ public:
 		c_id = id;
 	}
 
-	EXP_OVER(char* packet ,int id)
+	EXP_OVER(char* packet, int id)
 	{
 		_wsabuf.len = packet[0];
 		_wsabuf.buf = _send_buf;
@@ -56,7 +59,6 @@ class SESSION {
 	EXP_OVER _recv_over;
 
 public:
-	shared_mutex _s_lock;
 	S_STATE _state;
 	int c_id;
 	SOCKET _socket;
@@ -64,11 +66,19 @@ public:
 	char	_name[NAME_SIZE];
 	int		_prev_remain;
 	int		_last_move_time;
+
+	unordered_set <int> _view_list;
+
 public:
 	SESSION()
 	{
-		DebugBreak();
-		exit(-1);
+		c_id = -1;
+		_socket = NULL;
+		x = y = 0;
+		_name[0] = 0;
+		_state = ST_FREE;
+		_prev_remain = 0;
+		_view_list.clear();
 	}
 	SESSION(int id, SOCKET c_socket)
 	{
@@ -78,6 +88,7 @@ public:
 		_name[0] = 0;
 		_state = ST_FREE;
 		_prev_remain = 0;
+		_view_list.clear();
 	}
 
 	~SESSION() {}
@@ -111,18 +122,26 @@ public:
 	void send_add_player_packet(int c_id);
 	void send_remove_player_packet(int c_id)
 	{
-		SC_REMOVE_PLAYER_PACKET p;
-		p.id = c_id;
-		p.size = sizeof(p);
-		p.type = SC_REMOVE_PLAYER;
-		do_send(&p);
+		if (_view_list.count(c_id) != 0)
+		{
+			{
+				if (_view_list.count(c_id) == 0) {
+					return;
+				}
+				_view_list.erase(c_id);
+			}
+			SC_REMOVE_PLAYER_PACKET p;
+			p.id = c_id;
+			p.size = sizeof(p);
+			p.type = SC_REMOVE_PLAYER;
+			do_send(&p);
+		}
 	}
 	void processpacket(unsigned char* buf);
 };
 
+array<SESSION, MAX_USER> clients;
 
-unordered_map<int, SESSION> clients;
-shared_mutex cl_lock;
 
 void SESSION::processpacket(unsigned char* buf)
 {
@@ -131,35 +150,23 @@ void SESSION::processpacket(unsigned char* buf)
 	case CS_LOGIN:
 	{
 		CS_LOGIN_PACKET* packet = reinterpret_cast<CS_LOGIN_PACKET*>(buf);
-		std::unique_lock<std::shared_mutex> lock(cl_lock);
 		{
 			strcpy_s(clients[c_id]._name, packet->name);
 			clients[c_id].send_login_info_packet();
-		}
-		lock.unlock();
 
-		{
-			std::unique_lock<std::shared_mutex> {clients[c_id]._s_lock };
 			clients[c_id]._state = ST_INGAME;
-		}
 
-		{
-			std::shared_lock<std::shared_mutex> lock(cl_lock);
-			int count = 0;
 			for (auto& pl : clients)
 			{
-				count++;
 				{
-					std::shared_lock<std::shared_mutex> clock(pl.second._s_lock);
-					if (ST_INGAME != pl.second._state) 
+					if (ST_INGAME != pl._state)
 						continue;
 				}
-				if (pl.first == c_id) continue;
-				pl.second.send_add_player_packet(c_id);
-				clients[c_id].send_add_player_packet(pl.second.c_id);
+				if (pl.c_id == c_id) continue;
+				pl.send_add_player_packet(c_id);
+				clients[c_id].send_add_player_packet(pl.c_id);
 
 			}
-			cout << count << endl;
 		}
 		break;
 	}
@@ -176,10 +183,37 @@ void SESSION::processpacket(unsigned char* buf)
 		}
 		clients[c_id].x = x;
 		clients[c_id].y = y;
+		unordered_set <int> old_vl;
+		{
+			old_vl = clients[c_id]._view_list;
+		}
+		unordered_set <int> new_vl;
 
 		for (auto& pl : clients) {
-			if (pl.second._state != ST_INGAME) continue;
-			pl.second.send_move_packet(c_id);
+			if (pl._state != ST_INGAME) continue;
+			if (can_see(pl.c_id, c_id))
+				new_vl.insert(pl.c_id);
+		}
+		for (auto& o : new_vl) {
+			if (old_vl.count(o) == 0) {
+				clients[o].send_add_player_packet(c_id);
+				clients[c_id].send_add_player_packet(o);
+			}
+			else {
+				clients[o].send_move_packet(c_id);
+				clients[c_id].send_move_packet(o);
+			}
+		}
+		clients[c_id].send_move_packet(c_id);
+		for (auto op : old_vl)
+		{
+			if (clients[op]._state != ST_INGAME) continue;
+			if (clients[op].c_id == c_id) continue;
+			if (new_vl.count(op) == 0)
+			{
+				clients[c_id].send_remove_player_packet(op);
+				clients[op].send_remove_player_packet(c_id);
+			}
 		}
 		break;
 	}
@@ -194,6 +228,12 @@ void SESSION::processpacket(unsigned char* buf)
 }
 void SESSION::send_add_player_packet(int c_id)
 {
+	if (_view_list.count(c_id) != 0) {
+		send_move_packet(c_id);
+		return;
+	}
+	_view_list.insert(c_id);
+
 	SC_ADD_PLAYER_PACKET add_packet;
 	add_packet.id = c_id;
 	strcpy_s(add_packet.name, clients[c_id]._name);
@@ -204,16 +244,21 @@ void SESSION::send_add_player_packet(int c_id)
 	do_send(&add_packet);
 }
 
-void SESSION::send_move_packet(int c_id) 
+void SESSION::send_move_packet(int c_id)
 {
-	SC_MOVE_PLAYER_PACKET move_packet;
-	move_packet.type = SC_MOVE_PLAYER;
-	move_packet.size = sizeof(SC_MOVE_PLAYER_PACKET);
-	move_packet.x = clients[c_id].x;
-	move_packet.y = clients[c_id].y;
-	move_packet.id = c_id;
-	move_packet.move_time = clients[c_id]._last_move_time;
-	do_send(&move_packet);
+	if (_view_list.count(c_id) != 0) {
+		SC_MOVE_PLAYER_PACKET move_packet;
+		move_packet.type = SC_MOVE_PLAYER;
+		move_packet.size = sizeof(SC_MOVE_PLAYER_PACKET);
+		move_packet.x = clients[c_id].x;
+		move_packet.y = clients[c_id].y;
+		move_packet.id = c_id;
+		move_packet.move_time = clients[c_id]._last_move_time;
+		do_send(&move_packet);
+	}
+	else {
+		send_add_player_packet(c_id);
+	}
 }
 
 
@@ -222,21 +267,17 @@ void CALLBACK recv_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED recv_ove
 	EXP_OVER* ex_over = reinterpret_cast<EXP_OVER*>(recv_over);
 	int c_id = ex_over->c_id;
 	if (err != 0)
-	{
-		if(clients.count(c_id) != 0)
-		{
-			clients[c_id]._state = ST_FREE;
-			disconnect(c_id);
-		}
+	{	
+		disconnect(c_id);
 		return;
 	}
-	
+
 	//여기서 패킷 재조립을 해준다.
 	char* packet_start = ex_over->_send_buf;
 	static size_t in_packet_size = 0;
 	static size_t saved_packet_size = 0;
 	static unsigned char packet_buffer[BUF_SIZE];
-	
+
 
 	while (0 != num_bytes) {
 		if (0 == in_packet_size) in_packet_size = packet_start[0];
@@ -264,11 +305,7 @@ void CALLBACK send_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED send_ove
 	int c_id = ex_over->c_id;
 	if (err != 0)
 	{
-		if (clients.count(c_id) != 0)
-		{
-			clients[c_id]._state = ST_FREE;
-			disconnect(c_id);
-		}
+		disconnect(c_id);
 		return;
 	}
 
@@ -278,20 +315,21 @@ void CALLBACK send_callback(DWORD err, DWORD num_bytes, LPWSAOVERLAPPED send_ove
 
 void disconnect(int s_id)
 {
-	{
-		std::unique_lock<std::shared_mutex> lock(cl_lock);
-		if (clients.count(s_id) != 0)
-		{
-			closesocket(clients[s_id]._socket);
-			clients.erase(s_id);
-		}
-		lock.unlock();
-	}
+	
+	closesocket(clients[s_id]._socket);
 	for (auto& pl : clients) {
-		if (pl.second._state != ST_INGAME) continue;
-			pl.second.send_remove_player_packet(s_id);
+		if (pl._state != ST_INGAME) continue;
+		pl.send_remove_player_packet(s_id);
 	}
+	clients[s_id]._state = ST_FREE;
 	return;
+}
+bool can_see(int p1, int p2)
+{
+	// return VIEW_RANGE <= SQRT((p1.x - p2.x) ^ 2 + (p1.y - p2.y) ^ 2);
+	if (abs(clients[p1].x - clients[p2].x) > VIEW_RANGE) return false;
+	if (abs(clients[p1].y - clients[p2].y) > VIEW_RANGE) return false;
+	return true;
 }
 
 int main()
@@ -329,10 +367,9 @@ int main()
 
 	for (int i = 1; ; ++i) {
 		SOCKET c_socket = WSAAccept(s_socket, reinterpret_cast<sockaddr*>(&server_addr), &addr_size, 0, 0);
-		{
-			std::unique_lock<std::shared_mutex> lock(cl_lock);
-			clients.try_emplace(i, i, c_socket);
-		}
+
+		clients[i] = { i, c_socket };
+
 
 		int tcp_option = 1;
 		setsockopt(c_socket, IPPROTO_TCP, TCP_NODELAY, reinterpret_cast<char*>(&tcp_option), sizeof(tcp_option));
