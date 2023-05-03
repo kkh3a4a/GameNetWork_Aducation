@@ -284,7 +284,7 @@ void process_packet(int c_id, char* packet)
 				new_vl.insert(cl._id);
 				if (cl._id >= MAX_USER)
 				{
-					wake_up_npc(cl._id);
+					//wake_up_npc(cl._id);
 				}
 			}
 		}
@@ -545,7 +545,7 @@ void do_timer()
 {
 	while (1)
 	{
-		auto ev = g_timer_queue.top();
+		/*auto ev = g_timer_queue.top();
 		if (ev._exec_time > chrono::system_clock::now())
 		{
 			this_thread::sleep_for(10ms);
@@ -557,7 +557,7 @@ void do_timer()
 		OVER_EXP* over = new OVER_EXP;
 		over->_comp_type = OP_NPC_AI;
 		over->_e_type = ev._type;
-		PostQueuedCompletionStatus(g_h_iocp, 1, npc_id, &over->_over);
+		PostQueuedCompletionStatus(g_h_iocp, 1, npc_id, &over->_over);*/
 
 	}
 }
@@ -590,7 +590,7 @@ int main()
 	vector <thread> worker_threads;
 	int num_threads = std::thread::hardware_concurrency();
 	for (int i = 0; i < num_threads; ++i)
-		worker_threads.emplace_back(worker_thread, g_h_iocp);
+		worker_threads.emplace_back(worker_thread);
 	for (auto& th : worker_threads)
 		th.join();
 	ai_thread.join();
