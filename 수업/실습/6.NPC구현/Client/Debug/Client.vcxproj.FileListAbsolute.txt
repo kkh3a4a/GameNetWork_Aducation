@@ -1,2 +1,3 @@
 C:\Users\kkh3a\Desktop\GameNetWork_Aducation\Homework\#5\Client\Debug\Client.exe
 C:\Users\kkh3a\Desktop\GameNetWork_Aducation\수업\실습\NPC구현\Client\Debug\Client.exe
+C:\Users\kkh3a\Desktop\GameNetWork_Aducation\수업\실습\6.NPC구현\Client\Debug\Client.exe

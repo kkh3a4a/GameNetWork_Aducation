@@ -144,7 +144,7 @@ void ProcessPacket(char* ptr)
 			g_top_y = my_packet->y - 7;
 			avatar.show();
 		}
-		else if (id < MAX_USER) {
+		else if (id < MAX_USER + MAX_NPC) {
 			players[id] = OBJECT{ *pieces, 0, 0, 64, 64 };
 			players[id].move(my_packet->x, my_packet->y);
 			players[id].set_name(my_packet->name);
@@ -166,7 +166,7 @@ void ProcessPacket(char* ptr)
 			g_left_x = my_packet->x - 7;
 			g_top_y = my_packet->y - 7;
 		}
-		else if (other_id < MAX_USER) {
+		else if (other_id < MAX_USER + MAX_NPC) {
 			players[other_id].move(my_packet->x, my_packet->y);
 		}
 		else {
@@ -183,7 +183,7 @@ void ProcessPacket(char* ptr)
 		if (other_id == g_myid) {
 			avatar.hide();
 		}
-		else if (other_id < MAX_USER) {
+		else if (other_id < MAX_USER + MAX_NPC) {
 			players.erase(other_id);
 		}
 		else {
