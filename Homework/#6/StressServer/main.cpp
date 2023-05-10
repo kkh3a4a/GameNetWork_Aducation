@@ -477,7 +477,7 @@ void do_random_move(int n_id)
 	unordered_set<int> old_vlist;
 
 	for (int i = 0; i < MAX_USER; ++i) {
-		if (clients[i]._state == ST_INGAME) continue;
+		if (clients[i]._state == ST_ALLOC || clients[i]._state == ST_FREE) continue;
 		else if (clients[i]._state == ST_UNUSED)
 			break;
 		if (can_see(i, n_id) == false) continue;
@@ -501,9 +501,7 @@ void do_random_move(int n_id)
 		if (can_see(cl._id, n_id))
 			near_list.insert(cl._id);
 	}
-	int count_player = 0;
 	for (auto& pl : near_list) {
-		count_player++;
 		auto& cpl = clients[pl];
 		cpl._vl.lock();
 		if (cpl._view_list.count(n_id)) {
@@ -513,20 +511,6 @@ void do_random_move(int n_id)
 		else {
 			cpl._vl.unlock();
 			cpl.send_add_player_packet(n_id);
-		}
-	}
-	if (count_player == 0)
-	{
-	sleep_retry:
-		bool before_wake = clients[n_id]._n_wake;
-		if (before_wake == true)
-		{
-			if (!CAS(&clients[n_id]._n_wake, before_wake, false))
-			{
-				goto sleep_retry;
-			}
-			else
-				cout << n_id << " : sleep_npc" << endl;
 		}
 	}
 
