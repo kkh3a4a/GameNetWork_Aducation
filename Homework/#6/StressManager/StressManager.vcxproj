@@ -143,7 +143,6 @@
     <ClCompile Include="NetworkModule.cpp" />
   </ItemGroup>
   <ItemGroup>
-    <ClInclude Include="..\StressServer\protocol.h" />
     <ClInclude Include="NetworkModule.h" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

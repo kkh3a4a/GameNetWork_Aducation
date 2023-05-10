@@ -137,7 +137,7 @@ void ProcessPacket(char* ptr)
 	{
 		SC_ADD_PLAYER_PACKET * my_packet = reinterpret_cast<SC_ADD_PLAYER_PACKET*>(ptr);
 		int id = my_packet->id;
-
+		cout << id << " is login" << endl;
 		if (id == g_myid) {
 			avatar.move(my_packet->x, my_packet->y);
 			g_left_x = my_packet->x - 7;
@@ -160,6 +160,7 @@ void ProcessPacket(char* ptr)
 	case SC_MOVE_PLAYER:
 	{
 		SC_MOVE_PLAYER_PACKET* my_packet = reinterpret_cast<SC_MOVE_PLAYER_PACKET*>(ptr);
+		
 		int other_id = my_packet->id;
 		if (other_id == g_myid) {
 			avatar.move(my_packet->x, my_packet->y);
@@ -259,7 +260,10 @@ void client_main()
 			}
 		}
 	avatar.draw();
-	for (auto& pl : players) pl.second.draw();
+	for (auto& pl : players) { 
+		cout << pl.first << " is move" << endl;
+		pl.second.draw();
+	};
 	sf::Text text;
 	text.setFont(g_font);
 	char buf[100];

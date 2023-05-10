@@ -64,7 +64,7 @@ public:
 	char	_name[NAME_SIZE];
 	int		_prev_remain;									
 	int		_last_move_time;
-	volatile bool _n_wake;
+	volatile bool _n_wake;	// 주변에 플레이어가 있다면 한번만 wake를 true 바꿔주어 wake작동하게 한다.
 	
 	unordered_set <int> _view_list;
 	shared_mutex _vl;
@@ -222,7 +222,6 @@ bool can_see(int p1, int p2)
 }
 void wake_up_npc(int id)
 {
-	cout << id << " : wake_npc" << endl;
 	EVENT ev(id, EV_RANDOM_MOVE, chrono::system_clock::now());
 	l_q.lock();
 	g_timer_queue.push(ev);
@@ -530,6 +529,7 @@ void initialize_npc()
 		clients[npc_id].y = rand() % W_HEIGHT;
 		clients[npc_id]._state = ST_INGAME;
 		clients[npc_id]._id = npc_id	;
+		clients[npc_id]._n_wake = false;
 		sprintf_s(clients[npc_id]._name, "N%d", npc_id);
 	}
 	cout << "NPC_initialize success" << endl;
@@ -559,7 +559,6 @@ void do_npc_ai(int npc_id)
 			}
 			else
 			{
-				cout << npc_id << " : sleep_npc2" << endl;
 				return;
 			}
 		}
@@ -581,7 +580,7 @@ void do_timer()
 	{
 		if(g_timer_queue.empty())
 		{
-			this_thread::sleep_for(5ms);
+			this_thread::sleep_for(1ms);
 			continue;
 		}
 
@@ -590,7 +589,7 @@ void do_timer()
 		if (ev._exec_time > chrono::system_clock::now())
 		{
 			l_q.unlock();
-			this_thread::sleep_for(5ms);
+			this_thread::sleep_for(1ms);
 			continue;
 		}
 		g_timer_queue.pop();
