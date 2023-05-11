@@ -261,7 +261,6 @@ void client_main()
 		}
 	avatar.draw();
 	for (auto& pl : players) { 
-		cout << pl.first << " is move" << endl;
 		pl.second.draw();
 	};
 	sf::Text text;
