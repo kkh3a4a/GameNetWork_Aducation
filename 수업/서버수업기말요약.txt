@@ -33,7 +33,9 @@ ms SQL 22 SERVER 설치
 Linux에서도 이제 IOCP가 된다
 
 
-
+ASIO 에서 
+io_centext::run()을 하면 callback함수가 돌아감
+근데 sleepEx()는 안돌아감 둘이 별로임
 
 
 
