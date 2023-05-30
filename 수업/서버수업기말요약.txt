@@ -39,7 +39,8 @@ io_centext::run()을 하면 callback함수가 돌아감
 
 
 
-
+Mobile GameServer에서 
+CDN server쪽 잘 봐라
 
 
 
