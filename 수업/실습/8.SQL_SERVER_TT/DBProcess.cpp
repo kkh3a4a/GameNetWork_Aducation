@@ -13,11 +13,36 @@ using namespace std;
 #define NAME_LEN 20 
 
 
-void show_error() {
-    printf("error\n");
-}
+void show_error(SQLHSTMT hstmt) {
+    std::wcout.imbue(std::locale("korean"));
+    SQLWCHAR sqlState[6];
+    SQLINTEGER nativeErr;
+    SQLWCHAR errMsg[SQL_MAX_MESSAGE_LENGTH / sizeof(SQLWCHAR)];
+    SQLSMALLINT msgLen;
 
+    SQLGetDiagRec(SQL_HANDLE_STMT, hstmt, 1, sqlState, &nativeErr, (errMsg), SQL_MAX_MESSAGE_LENGTH / sizeof(SQLWCHAR), &msgLen);
+    wcout<< (L"SQL error : %ls\n", errMsg);
+    wcout << endl;
+}
+void HandleDiagnosticRecord(SQLHANDLE hHandle, SQLSMALLINT hType, RETCODE RetCode)
+{
+    SQLSMALLINT iRec = 0;
+    SQLINTEGER iError;
+    WCHAR wszMessage[1000];
+    WCHAR wszState[SQL_SQLSTATE_SIZE + 1];
+    if (RetCode == SQL_INVALID_HANDLE) {
+        fwprintf(stderr, L"Invalid handle!\n");
+        return;
+    }
+    while (SQLGetDiagRec(hType, hHandle, ++iRec, wszState, &iError, wszMessage, (SQLSMALLINT)(sizeof(wszMessage) / sizeof(WCHAR)), (SQLSMALLINT*)NULL) == SQL_SUCCESS) {
+        // Hide data truncated..
+        if (wcsncmp(wszState, L"01004", 5)) {
+            fwprintf(stderr, L"[%5.5s] %s (%d)\n", wszState, wszMessage, iError);
+        }
+    }
+}
 int main() {
+    std::wcout.imbue(std::locale("korean"));
     SQLHENV henv;
     SQLHDBC hdbc;
     SQLHSTMT hstmt = 0;
@@ -25,7 +50,6 @@ int main() {
     SQLCHAR szName[NAME_LEN];
     SQLINTEGER szId, szExp;
     SQLLEN cbName = 0, cbID = 0, cbExp = 0;
-
     // Allocate environment handle  
     retcode = SQLAllocHandle(SQL_HANDLE_ENV, SQL_NULL_HANDLE, &henv);
 
@@ -42,14 +66,16 @@ int main() {
                 SQLSetConnectAttr(hdbc, SQL_LOGIN_TIMEOUT, (SQLPOINTER)5, 0);
 
                 // Connect to data source  
-                retcode = SQLConnect(hdbc, (SQLWCHAR*)L"2023TT", SQL_NTS, (SQLWCHAR*)NULL, 0, NULL, 0);
-
+               //SQLConnect(hdbc, (SQLWCHAR*)L"DB_Master", SQL_NTS, (SQLWCHAR*)NULL, 0, NULL, 0);
+               retcode = SQLConnect(hdbc, (SQLWCHAR*)L"DB_GameServerProject", SQL_NTS, (SQLWCHAR*)L"2019180046", SQL_NTS, (SQLWCHAR*)L"2019180046", SQL_NTS);
                 // Allocate statement handle  
                 if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
                     retcode = SQLAllocHandle(SQL_HANDLE_STMT, hdbc, &hstmt);
-
+                    
                     // DB SELECT 함수 실행 
-                    retcode = SQLExecDirect(hstmt, (SQLWCHAR*)L"EXEC over_exp 30000", SQL_NTS);
+                    //retcode = SQLExecDirect(hstmt, (SQLWCHAR*)L"EXEC over_exp 30000", SQL_NTS);
+                    //retcode = SQLExecDirect(hstmt, (SQLWCHAR*)L"SELECT COUNT(*) FROM information_schema.tables WHERE table_name = 'user_info'", SQL_NTS);
+                    retcode = SQLExecDirect(hstmt, (SQLWCHAR*)L"SELECT user_id, user_name, user_exp FROM user_info", SQL_NTS);
                     if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
 
                         // Bind columns 1, 2, and 3  
@@ -64,12 +90,6 @@ int main() {
                                 cout << "Fetch error" << endl;
                             if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO)
                             {
-                                //replace wprintf with printf
-                                //%S with %ls
-                                //warning C4477: 'wprintf' : format string '%S' requires an argument of type 'char *'
-                                //but variadic argument 2 has type 'SQLWCHAR *'
-                                //wprintf(L"%d: %d %S %d\n", i + 1, szId, szName, szExp);  
-                                //cout << i + 1 << " ID : "<<szId << " Name : " << szName <<" Exp : " <<  szExp;
                                 cout << std::format("{} : {} {} {}\n", i + 1, szId, reinterpret_cast<char*>(szName), szExp);
                             }
                             else
@@ -78,7 +98,8 @@ int main() {
                     }
                     else
                     {
-                        show_error();
+                        HandleDiagnosticRecord(hstmt, SQL_HANDLE_DBC,retcode);
+                        show_error(hstmt);
                     }
 
                     // Process data  

@@ -32,7 +32,7 @@ int main() {
 
                 // Connect to data source  
                 // ODBC ¿¬°á
-                retcode = SQLConnect(hdbc, (SQLWCHAR*)L"2023TT", SQL_NTS, (SQLWCHAR*)NULL, 0, NULL, 0);
+                retcode = SQLConnect(hdbc, (SQLWCHAR*)L"DB_Master", SQL_NTS, (SQLWCHAR*)NULL, 0, NULL, 0);
 
                 // Allocate statement handle  
                 if (retcode == SQL_SUCCESS || retcode == SQL_SUCCESS_WITH_INFO) {
