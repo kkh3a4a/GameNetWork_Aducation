@@ -154,9 +154,9 @@
   <ItemGroup>
     <CustomBuild Include="protocol.proto">
       <FileType>Document</FileType>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\bin\protoc.exe --cpp_out=PROTOCOL protocol.proto</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">..\bin\protoc.exe --cpp_out=PROTOCOL protocol.proto</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">.\PROTOCOL\protocol.pb.h;.\PROTOCOL\protocol.pb.cc</Outputs>
-      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\bin\protoc.exe --cpp_out=PROTOCOL protocol.proto</Command>
+      <Command Condition="'$(Configuration)|$(Platform)'=='Release|x64'">..\bin\protoc.exe --cpp_out=PROTOCOL protocol.proto</Command>
       <Outputs Condition="'$(Configuration)|$(Platform)'=='Release|x64'">.\PROTOCOL\protocol.pb.h;.\PROTOCOL\protocol.pb.cc</Outputs>
     </CustomBuild>
   </ItemGroup>
