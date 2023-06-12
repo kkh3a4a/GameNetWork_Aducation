@@ -7,7 +7,7 @@
 using namespace std;
 using namespace chrono;
 
-//#pragma comment(lib, "Ws2_32.lib")
+#pragma comment(lib, "Ws2_32.lib")
 #pragma comment(lib, "libprotobuf.lib")
 
 #include "../../SimpleIOCPServer/SimpleIOCPServer/PROTOCOL/protocol.pb.h"
